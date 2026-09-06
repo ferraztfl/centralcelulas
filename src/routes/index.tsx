@@ -74,24 +74,24 @@ function LandingPage() {
             />
           </picture>
 
-          <div className="absolute inset-0 -z-20 bg-black/35" />
+          <div className="absolute inset-0 -z-20 bg-black/50" />
 
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background/95 via-background/82 to-background/45 md:from-background/92 md:via-background/72 md:to-background/28" />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/88 via-slate-950/68 to-slate-950/30 md:from-slate-950/84 md:via-slate-950/60 md:to-slate-950/20" />
 
           <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-background via-background/70 to-transparent" />
 
           <div className="mx-auto grid min-h-[720px] max-w-7xl items-center gap-12 px-5 py-16 md:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm backdrop-blur">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/85 shadow-sm backdrop-blur-md">
                 <MapPin className="size-3.5 text-primary" />
                 Campus Zona Norte
               </div>
 
-              <h1 className="max-w-3xl text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
-                Central de <span className="text-primary">Células</span>
+              <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] md:text-6xl lg:text-7xl">
+                Central de <span className="text-blue-300">Células</span>
               </h1>
 
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground md:text-xl">
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-white/85 md:text-xl">
                 Uma plataforma da Igreja do Amor para conectar pessoas, fortalecer relacionamentos e
                 facilitar o encontro da célula mais adequada para cada perfil.
               </p>
@@ -113,7 +113,7 @@ function LandingPage() {
                 </Link>
               </div>
 
-              <p className="mt-4 max-w-xl text-sm text-muted-foreground">
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/75">
                 Por segurança e privacidade, endereços, contatos e informações de líderes estão
                 disponíveis somente para usuários autenticados e aprovados.
               </p>
