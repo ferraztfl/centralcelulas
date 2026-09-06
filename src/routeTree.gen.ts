@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedMembrosRouteImport } from './routes/_authenticated/membros'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminNeighborhoodsRouteImport } from './routes/_authenticated/admin.neighborhoods'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedMembrosRoute = AuthenticatedMembrosRouteImport.update({
+  id: '/membros',
+  path: '/membros',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
@@ -79,6 +85,7 @@ const AuthenticatedAdminCellsIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/membros': typeof AuthenticatedMembrosRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/membros': typeof AuthenticatedMembrosRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/membros': typeof AuthenticatedMembrosRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/import': typeof AuthenticatedAdminImportRoute
   '/_authenticated/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/membros'
     | '/admin/dashboard'
     | '/admin/import'
     | '/admin/neighborhoods'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/membros'
     | '/admin/dashboard'
     | '/admin/import'
     | '/admin/neighborhoods'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/membros'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/import'
     | '/_authenticated/admin/neighborhoods'
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/membros': {
+      id: '/_authenticated/membros'
+      path: '/membros'
+      fullPath: '/membros'
+      preLoaderRoute: typeof AuthenticatedMembrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -230,6 +249,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedMembrosRoute: typeof AuthenticatedMembrosRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminImportRoute: typeof AuthenticatedAdminImportRoute
   AuthenticatedAdminNeighborhoodsRoute: typeof AuthenticatedAdminNeighborhoodsRoute
@@ -240,6 +260,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedMembrosRoute: AuthenticatedMembrosRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminImportRoute: AuthenticatedAdminImportRoute,
   AuthenticatedAdminNeighborhoodsRoute: AuthenticatedAdminNeighborhoodsRoute,
