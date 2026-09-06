@@ -1,13 +1,20 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPER_ADMIN_EMAIL, type AccessStatus, type AppAccessRole } from "@/lib/access";
 
-type AccessStatus = "pending" | "approved" | "rejected" | null;
+type UserAccess = {
+  role: AppAccessRole | null;
+  accessStatus: AccessStatus;
+};
 
 type Ctx = {
   user: User | null;
   session: Session | null;
+  role: AppAccessRole | null;
+  isApprovedMember: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   accessStatus: AccessStatus;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -15,23 +22,16 @@ type Ctx = {
 
 const AuthCtx = createContext<Ctx | null>(null);
 
-async function checkUserAccess(userId: string): Promise<{ isAdmin: boolean; accessStatus: AccessStatus }> {
-  const [{ data: roleData, error: roleError }, { data: profileData, error: profileError }] = await Promise.all([
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle(),
-    supabase
-      .from("profiles")
-      .select("access_status")
-      .eq("id", userId)
-      .maybeSingle(),
-  ]);
+async function checkUserAccess(userId: string, email: string | null): Promise<UserAccess> {
+  const [{ data: rolesData, error: rolesError }, { data: profileData, error: profileError }] =
+    await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
 
-  if (roleError) {
-    console.error("[useAuth] Failed to fetch admin role:", roleError);
+      supabase.from("profiles").select("access_status").eq("id", userId).maybeSingle(),
+    ]);
+
+  if (rolesError) {
+    console.error("[useAuth] Failed to fetch user roles:", rolesError);
   }
 
   if (profileError) {
@@ -39,93 +39,148 @@ async function checkUserAccess(userId: string): Promise<{ isAdmin: boolean; acce
   }
 
   const accessStatus = (profileData?.access_status ?? null) as AccessStatus;
-  const isAdmin = !!roleData && accessStatus === "approved";
 
-  return { isAdmin, accessStatus };
+  if (rolesError || profileError || accessStatus !== "approved") {
+    return {
+      role: null,
+      accessStatus,
+    };
+  }
+
+  const roleNames = new Set((rolesData ?? []).map((entry) => entry.role));
+
+  const normalizedEmail = email?.trim().toLowerCase() ?? null;
+
+  const role: AppAccessRole | null =
+    normalizedEmail === SUPER_ADMIN_EMAIL && roleNames.has("admin")
+      ? "super_admin"
+      : roleNames.has("admin")
+        ? "admin"
+        : roleNames.has("user")
+          ? "user"
+          : null;
+
+  return {
+    role,
+    accessStatus,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [role, setRole] = useState<AppAccessRole | null>(null);
+
   const [accessStatus, setAccessStatus] = useState<AccessStatus>(null);
+
   const [loading, setLoading] = useState(true);
+
   const lastCheckedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    const resolveForUser = async (s: Session | null, force = false) => {
+    const resolveForUser = async (currentSession: Session | null, force = false) => {
       if (!mounted) return;
 
-      setSession(s);
+      setSession(currentSession);
 
-      if (!s?.user) {
+      if (!currentSession?.user) {
         lastCheckedUserId.current = null;
-        setIsAdmin(false);
+        setRole(null);
         setAccessStatus(null);
         setLoading(false);
         return;
       }
 
-      if (!force && lastCheckedUserId.current === s.user.id) {
+      if (!force && lastCheckedUserId.current === currentSession.user.id) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
 
-      const access = await checkUserAccess(s.user.id);
+      const access = await checkUserAccess(
+        currentSession.user.id,
+        currentSession.user.email ?? null,
+      );
 
       if (!mounted) return;
 
-      lastCheckedUserId.current = s.user.id;
-      setIsAdmin(access.isAdmin);
+      lastCheckedUserId.current = currentSession.user.id;
+
+      setRole(access.role);
       setAccessStatus(access.accessStatus);
       setLoading(false);
     };
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (event === "SIGNED_OUT") {
         lastCheckedUserId.current = null;
         setSession(null);
-        setIsAdmin(false);
+        setRole(null);
         setAccessStatus(null);
         setLoading(false);
         return;
       }
 
       setTimeout(() => {
-        void resolveForUser(s, event === "SIGNED_IN" || event === "TOKEN_REFRESHED");
+        void resolveForUser(currentSession, event === "SIGNED_IN" || event === "TOKEN_REFRESHED");
       }, 0);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       void resolveForUser(data.session, true);
     });
 
     return () => {
       mounted = false;
-      sub.subscription.unsubscribe();
+      subscription.subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+
     lastCheckedUserId.current = null;
     setSession(null);
-    setIsAdmin(false);
+    setRole(null);
     setAccessStatus(null);
   };
 
+  const isApprovedMember = accessStatus === "approved" && role !== null;
+
+  const isAdmin = role === "admin" || role === "super_admin";
+
+  const isSuperAdmin = role === "super_admin";
+
   return (
-    <AuthCtx.Provider value={{ user: session?.user ?? null, session, isAdmin, accessStatus, loading, signOut }}>
+    <AuthCtx.Provider
+      value={{
+        user: session?.user ?? null,
+        session,
+        role,
+        isApprovedMember,
+        isAdmin,
+        isSuperAdmin,
+        accessStatus,
+        loading,
+        signOut,
+      }}
+    >
       {children}
     </AuthCtx.Provider>
   );
 }
 
+// O hook é exportado junto do Provider intencionalmente.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
-  const c = useContext(AuthCtx);
-  if (!c) throw new Error("useAuth must be used within AuthProvider");
-  return c;
+  const context = useContext(AuthCtx);
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
+  return context;
 }

@@ -1,9 +1,10 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export const SUPER_ADMIN_EMAIL = "thiagoferrazdm@gmail.com";
+import { SUPER_ADMIN_EMAIL, type AppAccessRole } from "@/lib/access";
 
-export type AppAccessRole = "super_admin" | "admin" | "user";
+export { SUPER_ADMIN_EMAIL };
+export type { AppAccessRole };
 
 export type ApprovedAccess = {
   userId: string;
