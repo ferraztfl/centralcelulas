@@ -16,7 +16,18 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { CellMap } from "@/components/CellMap";
-import { Instagram, MessageCircle, Search, Sparkles, MapPin, Calendar, Clock } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Copy,
+  Instagram,
+  MessageCircle,
+  MapPin,
+  Phone,
+  Search,
+  Sparkles,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +129,123 @@ function readStoredSearch<T>(userId: string) {
   } catch {
     return null;
   }
+}
+
+type SearchResultCell = {
+  id: string;
+  name: string;
+  network_id: string;
+  address: string;
+  neighborhood: string;
+  distanceKm?: number | null;
+  meeting_weekday?: number | null;
+  meeting_time?: string | null;
+  leader_name: string;
+  leader_whatsapp: string;
+  leader2_name?: string | null;
+  leader2_whatsapp?: string | null;
+  leader_instagram?: string | null;
+};
+
+function normalizeBrazilianWhatsapp(value?: string | null) {
+  if (!value) return "";
+
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  return digits;
+}
+
+function formatBrazilianPhone(value?: string | null) {
+  if (!value) return "Não informado";
+
+  let digits = value.replace(/\D/g, "");
+
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return value;
+}
+
+async function copyToClipboard(text: string, successMessage: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      const copied = document.execCommand("copy");
+      textarea.remove();
+
+      if (!copied) {
+        throw new Error("Falha ao copiar.");
+      }
+    }
+
+    toast.success(successMessage);
+  } catch {
+    toast.error("Não foi possível copiar para a área de transferência.");
+  }
+}
+
+function buildCellClipboardText(
+  cell: SearchResultCell,
+  networkName: string | undefined,
+  position: number,
+) {
+  const meeting = [
+    cell.meeting_weekday != null ? weekdayLabel(cell.meeting_weekday) : null,
+    cell.meeting_time ? formatMeetingTime(cell.meeting_time) : null,
+  ]
+    .filter(Boolean)
+    .join(" às ");
+
+  const lines = [
+    `${position}ª opção — ${cell.name}`,
+    networkName ? `Rede: ${networkName}` : null,
+    cell.distanceKm != null ? `Distância aproximada: ${cell.distanceKm.toFixed(1)} km` : null,
+    meeting ? `Reunião: ${meeting}` : null,
+    `Endereço: ${cell.address} — ${cell.neighborhood}`,
+    `Líder: ${cell.leader_name}`,
+    `Contato: ${formatBrazilianPhone(cell.leader_whatsapp)}`,
+  ];
+
+  if (cell.leader2_name) {
+    lines.push(`Segundo líder: ${cell.leader2_name}`);
+  }
+
+  if (cell.leader2_whatsapp) {
+    lines.push(`Contato: ${formatBrazilianPhone(cell.leader2_whatsapp)}`);
+  }
+
+  if (cell.leader_instagram) {
+    const instagram = cell.leader_instagram.replace(/^@/, "");
+    lines.push(`Instagram: @${instagram}`);
+  }
+
+  return lines.filter(Boolean).join("\n");
 }
 
 function MemberSearch() {
@@ -525,115 +653,301 @@ function MemberSearch() {
       <div ref={resultAnchorRef} className="scroll-mt-24" aria-hidden="true" />
 
       {result && result.ok && result.results.length > 0 && (
-        <section className="max-w-6xl mx-auto px-4 pb-16">
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold">Top {result.results.length} para você</h3>
-            <p className="text-sm text-muted-foreground">Ordenado por proximidade e afinidade.</p>
+        <section className="mx-auto max-w-6xl px-5 pb-16 md:px-8">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                <Sparkles className="size-3.5" />
+                Atendimento de células
+              </div>
+
+              <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Melhores opções encontradas
+              </h3>
+
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Selecionamos as células mais compatíveis com a localização, perfil e disponibilidade
+                informados.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => {
+                const summary = result.results
+                  .map((cell, index) =>
+                    buildCellClipboardText(cell, netMap[cell.network_id]?.name, index + 1),
+                  )
+                  .join("\n\n------------------------------\n\n");
+
+                void copyToClipboard(summary, "Resumo das opções copiado.");
+              }}
+            >
+              <Copy className="mr-2 size-4" />
+              Copiar resumo das opções
+            </Button>
           </div>
-          <div className="grid lg:grid-cols-[1fr_1fr] gap-6">
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.95fr)]">
             <div className="space-y-4">
               {result.results.map((c, i) => {
                 const net = netMap[c.network_id];
-                const wa = c.leader_whatsapp.replace(/\D/g, "");
-                const wa2 = c.leader2_whatsapp?.replace(/\D/g, "");
-                const ig = c.leader_instagram?.replace(/^@/, "");
+
+                const whatsapp = normalizeBrazilianWhatsapp(c.leader_whatsapp);
+
+                const whatsapp2 = normalizeBrazilianWhatsapp(c.leader2_whatsapp);
+
+                const instagram = c.leader_instagram?.replace(/^@/, "");
+
+                const recommendationLabel = i === 0 ? "Mais indicada" : `${i + 1}ª opção`;
+
+                const summary = buildCellClipboardText(c, net?.name, i + 1);
+
                 return (
-                  <Card key={c.id} className="p-5 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="size-10 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                        {i + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {net && <NetworkBadge networkId={c.network_id} name={net.name} />}
-                          <span className="text-xs text-muted-foreground">
-                            {c.distanceKm != null ? `${c.distanceKm.toFixed(1)} km` : ""}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-lg">{c.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {c.address} — {c.neighborhood}
-                        </p>
-                        {(c.meeting_weekday != null || c.meeting_time) && (
-                          <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-                            {c.meeting_weekday != null && (
-                              <span className="inline-flex items-center gap-1">
-                                <Calendar className="size-3" />
-                                {weekdayLabel(c.meeting_weekday)}
-                              </span>
-                            )}
-                            {c.meeting_time && (
-                              <span className="inline-flex items-center gap-1">
-                                <Clock className="size-3" />
-                                {formatMeetingTime(c.meeting_time)}
-                              </span>
-                            )}
+                  <Card
+                    key={c.id}
+                    className={`overflow-hidden transition-shadow hover:shadow-md ${
+                      i === 0 ? "border-primary/30 shadow-md shadow-primary/5" : ""
+                    }`}
+                  >
+                    <div
+                      className={`border-b px-5 py-3 ${i === 0 ? "bg-primary/5" : "bg-muted/25"}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div
+                            className={`flex size-9 items-center justify-center rounded-full font-bold ${
+                              i === 0
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-foreground"
+                            }`}
+                          >
+                            {i + 1}
                           </div>
-                        )}
-                        <div className="mt-2 space-y-1">
-                          <p className="text-sm">
-                            Líder: <strong>{c.leader_name}</strong>
-                          </p>
-                          {c.leader2_name && (
-                            <p className="text-sm">
-                              Líder 2: <strong>{c.leader2_name}</strong>
-                            </p>
+
+                          {i === 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                              <Star className="size-3 fill-current" />
+                              Mais indicada
+                            </span>
+                          )}
+
+                          {i > 0 && (
+                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {recommendationLabel}
+                            </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <Button asChild size="sm">
+
+                        {c.distanceKm != null && (
+                          <span className="rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                            {c.distanceKm.toFixed(1)} km
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {net && <NetworkBadge networkId={c.network_id} name={net.name} />}
+                      </div>
+
+                      <h4 className="mt-3 text-xl font-bold tracking-tight">{c.name}</h4>
+
+                      <div className="mt-3 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+                        <MapPin className="mt-1 size-4 shrink-0 text-primary" />
+
+                        <span>
+                          {c.address}
+                          <br />
+                          <span className="text-xs">{c.neighborhood}</span>
+                        </span>
+                      </div>
+
+                      {(c.meeting_weekday != null || c.meeting_time) && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {c.meeting_weekday != null && (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium">
+                              <Calendar className="size-3.5 text-primary" />
+                              {weekdayLabel(c.meeting_weekday)}
+                            </span>
+                          )}
+
+                          {c.meeting_time && (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium">
+                              <Clock className="size-3.5 text-primary" />
+                              {formatMeetingTime(c.meeting_time)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-5 rounded-2xl border bg-muted/25 p-4">
+                        <div className="mb-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Contatos da liderança
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold">{c.leader_name}</p>
+
+                              <p className="mt-1 flex items-center gap-1.5 text-base font-bold tracking-tight">
+                                <Phone className="size-4 text-primary" />
+                                {formatBrazilianPhone(c.leader_whatsapp)}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  void copyToClipboard(
+                                    formatBrazilianPhone(c.leader_whatsapp),
+                                    "Contato do líder copiado.",
+                                  )
+                                }
+                              >
+                                <Copy className="mr-1.5 size-3.5" />
+                                Copiar
+                              </Button>
+
+                              {whatsapp && (
+                                <Button asChild size="sm" variant="outline">
+                                  <a
+                                    href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(
+                                      `Olá ${c.leader_name}, estou entrando em contato através da Central de Células da Igreja do Amor - Campus Zona Norte.`,
+                                    )}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    <MessageCircle className="mr-1.5 size-3.5" />
+                                    WhatsApp
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {c.leader2_name && (
+                            <div className="border-t pt-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className="text-sm font-semibold">{c.leader2_name}</p>
+
+                                  {c.leader2_whatsapp && (
+                                    <p className="mt-1 flex items-center gap-1.5 text-base font-bold tracking-tight">
+                                      <Phone className="size-4 text-primary" />
+                                      {formatBrazilianPhone(c.leader2_whatsapp)}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {c.leader2_whatsapp && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        void copyToClipboard(
+                                          formatBrazilianPhone(c.leader2_whatsapp),
+                                          "Contato do segundo líder copiado.",
+                                        )
+                                      }
+                                    >
+                                      <Copy className="mr-1.5 size-3.5" />
+                                      Copiar
+                                    </Button>
+
+                                    {whatsapp2 && (
+                                      <Button asChild size="sm" variant="outline">
+                                        <a
+                                          href={`https://wa.me/${whatsapp2}?text=${encodeURIComponent(
+                                            `Olá ${c.leader2_name}, estou entrando em contato através da Central de Células da Igreja do Amor - Campus Zona Norte.`,
+                                          )}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          <MessageCircle className="mr-1.5 size-3.5" />
+                                          WhatsApp
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void copyToClipboard(summary, "Dados da célula copiados.")}
+                        >
+                          <Copy className="mr-1.5 size-4" />
+                          Copiar dados da célula
+                        </Button>
+
+                        {instagram && (
+                          <Button asChild size="sm" variant="ghost">
                             <a
-                              href={`https://wa.me/${wa}?text=${encodeURIComponent(`Olá ${c.leader_name}, vim pelo Localizador de Células!`)}`}
+                              href={`https://instagram.com/${instagram}`}
                               target="_blank"
                               rel="noreferrer"
                             >
-                              <MessageCircle className="size-4 mr-1" /> WhatsApp
+                              <Instagram className="mr-1.5 size-4" />@{instagram}
                             </a>
                           </Button>
-                          {wa2 && c.leader2_name && (
-                            <Button asChild size="sm" variant="outline">
-                              <a
-                                href={`https://wa.me/${wa2}?text=${encodeURIComponent(`Olá ${c.leader2_name}, vim pelo Localizador de Células!`)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <MessageCircle className="size-4 mr-1" /> WA{" "}
-                                {c.leader2_name.split(" ")[0]}
-                              </a>
-                            </Button>
-                          )}
-                          {ig && (
-                            <Button asChild size="sm" variant="outline">
-                              <a
-                                href={`https://instagram.com/${ig}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <Instagram className="size-4 mr-1" /> @{ig}
-                              </a>
-                            </Button>
-                          )}
-                        </div>
+                        )}
                       </div>
+
+                      <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                        Recomendação baseada em rede, proximidade e disponibilidade informadas na
+                        busca.
+                      </p>
                     </div>
                   </Card>
                 );
               })}
             </div>
-            <div className="lg:sticky lg:top-24 self-start">
-              <CellMap
-                visitor={{ lat: result.visitor.lat, lng: result.visitor.lng }}
-                cells={result.results
-                  .filter((c) => c.latitude != null && c.longitude != null)
-                  .map((c) => ({
-                    id: c.id,
-                    lat: c.latitude!,
-                    lng: c.longitude!,
-                    name: c.name,
-                    network_id: c.network_id,
-                  }))}
-                className="h-[500px] w-full"
-              />
+
+            <div className="self-start lg:sticky lg:top-24">
+              <div className="overflow-hidden rounded-2xl border bg-background shadow-sm">
+                <div className="border-b px-4 py-3">
+                  <p className="text-sm font-semibold">Localização das opções</p>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    O ponto escuro representa o endereço informado no atendimento.
+                  </p>
+                </div>
+
+                <CellMap
+                  visitor={{
+                    lat: result.visitor.lat,
+                    lng: result.visitor.lng,
+                  }}
+                  cells={result.results
+                    .filter((c) => c.latitude != null && c.longitude != null)
+                    .map((c) => ({
+                      id: c.id,
+                      lat: c.latitude!,
+                      lng: c.longitude!,
+                      name: c.name,
+                      network_id: c.network_id,
+                    }))}
+                  className="h-[520px] w-full"
+                />
+              </div>
             </div>
           </div>
         </section>
