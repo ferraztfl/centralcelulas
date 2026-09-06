@@ -1,11 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  geocodeAddress,
-  reverseGeocodeCoordinates,
-} from "@/lib/geocode.functions";
+  BadgeCheck,
+  Building2,
+  CalendarClock,
+  LocateFixed,
+  MapPin,
+  Save,
+  UsersRound,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { geocodeAddress, reverseGeocodeCoordinates } from "@/lib/geocode.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { MapPin } from "lucide-react";
 import { WEEKDAYS } from "@/lib/weekdays";
 
 type Cell = {
@@ -27,29 +32,73 @@ type Cell = {
   name: string;
   network_id: string;
   gender: "masculina" | "feminina" | "mista";
+
   address: string;
+  street: string | null;
+  street_number: string | null;
+  address_complement: string | null;
   neighborhood: string;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+
   latitude: number | null;
   longitude: number | null;
+
   leader_name: string;
   leader_whatsapp: string;
   leader_instagram: string | null;
   leader2_name: string | null;
   leader2_whatsapp: string | null;
+
   meeting_weekday: number | null;
   meeting_time: string | null;
   is_active: boolean;
 };
 
+const BRAZIL_STATES = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+] as const;
+
 type LeafletModule = typeof import("leaflet");
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 function coordinateMarkerIcon(L: LeafletModule) {
   return L.divIcon({
     className: "",
-    html: `<div style="width:28px;height:28px;border-radius:9999px;background:#2563eb;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;">📍</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
+    html: `<div style="width:30px;height:30px;border-radius:9999px;background:#2563eb;border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;">📍</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30],
   });
 }
 
@@ -77,7 +126,7 @@ function CoordinatePickerMap({
 
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const L = await import("leaflet");
         await import("leaflet/dist/leaflet.css");
@@ -105,18 +154,17 @@ function CoordinatePickerMap({
           title: "Local da célula",
         })
           .addTo(map)
-          .bindPopup("Arraste o pin até o local exato da célula.");
+          .bindPopup("Arraste o pin para ajustar o local exato.");
 
         marker.on("dragend", () => {
           const position = marker.getLatLng();
-          onChangeRef.current(
-            Number(position.lat.toFixed(7)),
-            Number(position.lng.toFixed(7)),
-          );
+
+          onChangeRef.current(Number(position.lat.toFixed(7)), Number(position.lng.toFixed(7)));
         });
 
         map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
           marker.setLatLng(event.latlng);
+
           onChangeRef.current(
             Number(event.latlng.lat.toFixed(7)),
             Number(event.latlng.lng.toFixed(7)),
@@ -127,8 +175,10 @@ function CoordinatePickerMap({
         markerRef.current = marker;
 
         window.setTimeout(() => map.invalidateSize(), 0);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Erro ao carregar o mapa");
+      } catch (error) {
+        if (!cancelled) {
+          setError(getErrorMessage(error, "Erro ao carregar o mapa."));
+        }
       }
     })();
 
@@ -138,37 +188,39 @@ function CoordinatePickerMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-    // A inicialização deve acontecer uma única vez quando o mapa aparece.
-    // A sincronização das coordenadas acontece no efeito abaixo.
+
+    // Inicialização única do mapa.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const position: [number, number] = [latitude, longitude];
+
     markerRef.current?.setLatLng(position);
-    mapRef.current?.setView(position, Math.max(mapRef.current.getZoom(), 16));
+
+    if (mapRef.current) {
+      mapRef.current.setView(position, Math.max(mapRef.current.getZoom(), 16));
+    }
   }, [latitude, longitude]);
 
   if (error) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
+      <div className="flex h-64 items-center justify-center rounded-xl border border-dashed bg-muted/30 p-5 text-center text-sm text-muted-foreground">
         {error}
       </div>
     );
   }
 
-  return (
-    <div
-      ref={ref}
-      className="h-72 w-full overflow-hidden rounded-lg border bg-muted"
-    />
-  );
+  return <div ref={ref} className="h-80 w-full overflow-hidden rounded-xl border bg-muted" />;
 }
 
 function parseCoordinate(value: string) {
   const normalized = value.trim().replace(",", ".");
+
   if (!normalized) return null;
+
   const parsed = Number(normalized);
+
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -176,23 +228,94 @@ function formatCoordinate(value: number | null) {
   return value == null ? "" : String(value);
 }
 
+function normalizePostalCode(value?: string | null) {
+  if (!value) return null;
 
-const CELL_FORM_DRAFT_VERSION = 1;
+  const digits = value.replace(/\D/g, "").slice(0, 8);
 
-function getDraftStorageKey(cellId?: string) {
-  if (!cellId) return null;
-  return `iacelulas:cell-form-draft:v${CELL_FORM_DRAFT_VERSION}:${cellId}`;
+  if (digits.length === 8) {
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  }
+
+  return digits || null;
 }
 
-function readFormDraft(key: string | null): Partial<Cell> | null {
-  if (!key || typeof window === "undefined") return null;
+function trimOrNull(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function hasAnyStructuredAddress(cell: Cell) {
+  return Boolean(
+    cell.street?.trim() ||
+    cell.street_number?.trim() ||
+    cell.address_complement?.trim() ||
+    cell.city?.trim() ||
+    cell.state?.trim() ||
+    cell.postal_code?.trim(),
+  );
+}
+
+function hasCompleteStructuredAddress(cell: Cell) {
+  return Boolean(
+    cell.street?.trim() &&
+    cell.street_number?.trim() &&
+    cell.neighborhood.trim() &&
+    cell.city?.trim() &&
+    cell.state?.trim(),
+  );
+}
+
+function buildDisplayAddress(cell: Cell) {
+  const streetLine = [cell.street?.trim(), cell.street_number?.trim()].filter(Boolean).join(", ");
+
+  const cityState = [cell.city?.trim(), cell.state?.trim().toUpperCase()]
+    .filter(Boolean)
+    .join(" - ");
+
+  return [
+    streetLine,
+    cell.address_complement?.trim(),
+    cityState,
+    normalizePostalCode(cell.postal_code),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildGeocodeAddress(cell: Cell) {
+  return [
+    [cell.street?.trim(), cell.street_number?.trim()].filter(Boolean).join(", "),
+    cell.address_complement?.trim(),
+    cell.neighborhood.trim(),
+    cell.city?.trim(),
+    cell.state?.trim().toUpperCase(),
+    normalizePostalCode(cell.postal_code) ? `CEP ${normalizePostalCode(cell.postal_code)}` : null,
+    "Brasil",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+const CELL_FORM_DRAFT_VERSION = 2;
+
+function getDraftStorageKey(cellId?: string) {
+  return `iacelulas:cell-form-draft:v${CELL_FORM_DRAFT_VERSION}:${cellId ?? "new"}`;
+}
+
+function readFormDraft(key: string): Partial<Cell> | null {
+  if (typeof window === "undefined") return null;
 
   try {
     const raw = window.sessionStorage.getItem(key);
+
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<Cell>;
-    if (!parsed || typeof parsed !== "object") return null;
+
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
 
     return parsed;
   } catch {
@@ -200,45 +323,56 @@ function readFormDraft(key: string | null): Partial<Cell> | null {
   }
 }
 
-function saveFormDraft(key: string | null, form: Cell) {
-  if (!key || typeof window === "undefined") return;
+function saveFormDraft(key: string, form: Cell) {
+  if (typeof window === "undefined") return;
 
   try {
     window.sessionStorage.setItem(key, JSON.stringify(form));
   } catch {
-    // Ignora falhas de storage para não quebrar o formulário.
+    // Storage não deve impedir o cadastro.
   }
 }
 
-function clearFormDraft(key: string | null) {
-  if (!key || typeof window === "undefined") return;
+function clearFormDraft(key: string) {
+  if (typeof window === "undefined") return;
 
   try {
     window.sessionStorage.removeItem(key);
   } catch {
-    // Ignora falhas de storage para não quebrar o formulário.
+    // Storage não deve impedir a navegação.
   }
 }
 
 function buildInitialForm(initial?: Partial<Cell>): Cell {
-  const base = {
+  const base: Cell = {
     name: "",
     network_id: "decolar",
     gender: "mista",
+
     address: "",
+    street: "",
+    street_number: "",
+    address_complement: "",
     neighborhood: "",
+    city: "Recife",
+    state: "PE",
+    postal_code: "",
+
     latitude: null,
     longitude: null,
+
     leader_name: "",
     leader_whatsapp: "",
     leader_instagram: "",
     leader2_name: "",
     leader2_whatsapp: "",
+
     meeting_weekday: null,
     meeting_time: null,
     is_active: true,
+
     ...initial,
-  } as Cell;
+  };
 
   const draft = readFormDraft(getDraftStorageKey(initial?.id));
 
@@ -248,44 +382,47 @@ function buildInitialForm(initial?: Partial<Cell>): Cell {
     ...base,
     ...draft,
     id: base.id,
-  } as Cell;
+  };
 }
 
-export function CellForm({
-  initial,
-  onDone,
-}: {
-  initial?: Partial<Cell>;
-  onDone: () => void;
-}) {
+export function CellForm({ initial, onDone }: { initial?: Partial<Cell>; onDone: () => void }) {
   const qc = useQueryClient();
+
   const geocodeFn = useServerFn(geocodeAddress);
   const reverseGeocodeFn = useServerFn(reverseGeocodeCoordinates);
 
   const draftStorageKey = getDraftStorageKey(initial?.id);
+
   const [form, setForm] = useState<Cell>(() => buildInitialForm(initial));
+
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
+
   const lastReverseGeocodedKey = useRef<string | null>(null);
-  const manualCoordinateTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+
+  const manualCoordinateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: networks } = useQuery({
     queryKey: ["networks"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("networks")
-        .select("*")
-        .order("sort_order");
+      const { data, error } = await supabase.from("networks").select("*").order("sort_order");
+
       if (error) throw error;
+
       return data;
     },
   });
 
   const update = (patch: Partial<Cell>) =>
-    setForm((current) => ({ ...current, ...patch }));
+    setForm((current) => ({
+      ...current,
+      ...patch,
+    }));
+
+  const legacyAddressMode = Boolean(
+    form.id && form.address.trim() && !hasAnyStructuredAddress(form),
+  );
 
   const applyReverseGeocode = async (
     latitude: number,
@@ -300,27 +437,49 @@ export function CellForm({
     setReverseGeocoding(true);
 
     try {
-      const result = await reverseGeocodeFn({ data: { latitude, longitude } });
+      const result = await reverseGeocodeFn({
+        data: {
+          latitude,
+          longitude,
+        },
+      });
 
       if (!result.ok) {
-        if (!options?.silent) toast.error(result.error);
+        if (!options?.silent) {
+          toast.error(result.error);
+        }
         return;
       }
 
-      const patch: Partial<Cell> = {};
+      const patch: Partial<Cell> = {
+        street: trimOrNull(result.street) ?? form.street,
+        street_number: trimOrNull(result.streetNumber) ?? form.street_number,
+        neighborhood: trimOrNull(result.neighborhood) ?? form.neighborhood,
+        city: trimOrNull(result.city) ?? form.city,
+        state: trimOrNull(result.state)?.toUpperCase() ?? form.state,
+        postal_code: normalizePostalCode(result.postalCode) ?? form.postal_code,
+      };
 
-      if (result.address?.trim()) patch.address = result.address.trim();
-      if (result.neighborhood?.trim())
-        patch.neighborhood = result.neighborhood.trim();
+      const next = {
+        ...form,
+        ...patch,
+        latitude,
+        longitude,
+      };
 
-      if (Object.keys(patch).length > 0) {
-        update(patch);
-        if (!options?.silent)
-          toast.success("Endereço e bairro atualizados pelo local do pin.");
+      patch.address = hasCompleteStructuredAddress(next)
+        ? buildDisplayAddress(next)
+        : result.address;
+
+      update(patch);
+
+      if (!options?.silent) {
+        toast.success("Localização atualizada pelo mapa.");
       }
-    } catch (e: any) {
-      if (!options?.silent)
-        toast.error(e?.message ?? "Erro ao buscar endereço pelo pin");
+    } catch (error) {
+      if (!options?.silent) {
+        toast.error(getErrorMessage(error, "Erro ao identificar o endereço."));
+      }
     } finally {
       setReverseGeocoding(false);
     }
@@ -329,22 +488,30 @@ export function CellForm({
   const updateCoordinates = (
     latitude: number | null,
     longitude: number | null,
-    options?: { reverseAddress?: boolean; debounceReverse?: boolean },
+    options?: {
+      reverseAddress?: boolean;
+      debounceReverse?: boolean;
+    },
   ) => {
-    update({ latitude, longitude });
+    update({
+      latitude,
+      longitude,
+    });
 
     if (manualCoordinateTimer.current) {
       clearTimeout(manualCoordinateTimer.current);
       manualCoordinateTimer.current = null;
     }
 
-    if (latitude == null || longitude == null || !options?.reverseAddress)
+    if (latitude == null || longitude == null || !options?.reverseAddress) {
       return;
+    }
 
     if (options.debounceReverse) {
       manualCoordinateTimer.current = setTimeout(() => {
         void applyReverseGeocode(latitude, longitude, { silent: true });
       }, 800);
+
       return;
     }
 
@@ -353,6 +520,7 @@ export function CellForm({
 
   const updateLatitudeFromInput = (value: string) => {
     const latitude = parseCoordinate(value);
+
     updateCoordinates(latitude, form.longitude, {
       reverseAddress: latitude != null && form.longitude != null,
       debounceReverse: true,
@@ -361,6 +529,7 @@ export function CellForm({
 
   const updateLongitudeFromInput = (value: string) => {
     const longitude = parseCoordinate(value);
+
     updateCoordinates(form.latitude, longitude, {
       reverseAddress: form.latitude != null && longitude != null,
       debounceReverse: true,
@@ -368,27 +537,65 @@ export function CellForm({
   };
 
   const handleGeocode = async () => {
-    if (!form.address.trim()) {
-      toast.error("Informe o endereço");
+    const structured = hasCompleteStructuredAddress(form);
+
+    const address = structured ? buildGeocodeAddress(form) : form.address.trim();
+
+    if (!address) {
+      toast.error("Preencha os dados do endereço antes de localizar.");
+      return;
+    }
+
+    if (!structured && !legacyAddressMode) {
+      toast.error("Informe rua, número, bairro, cidade e UF.");
       return;
     }
 
     setGeocoding(true);
 
     try {
-      const result = await geocodeFn({ data: { address: form.address } });
+      const result = await geocodeFn({
+        data: { address },
+      });
 
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
 
-      updateCoordinates(result.latitude, result.longitude);
-      toast.success(
-        "Coordenadas obtidas! Confira no mapa e ajuste o pin se necessário.",
-      );
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro");
+      const patch: Partial<Cell> = {
+        latitude: result.latitude,
+        longitude: result.longitude,
+
+        street: trimOrNull(form.street) ?? trimOrNull(result.street),
+
+        street_number: trimOrNull(form.street_number) ?? trimOrNull(result.streetNumber),
+
+        neighborhood: form.neighborhood.trim() || result.neighborhood || "",
+
+        city: trimOrNull(form.city) ?? trimOrNull(result.city),
+
+        state:
+          trimOrNull(form.state)?.toUpperCase() ?? trimOrNull(result.state)?.toUpperCase() ?? null,
+
+        postal_code:
+          normalizePostalCode(form.postal_code) ?? normalizePostalCode(result.postalCode),
+      };
+
+      const next: Cell = {
+        ...form,
+        ...patch,
+      };
+
+      patch.address = hasCompleteStructuredAddress(next)
+        ? buildDisplayAddress(next)
+        : result.formatted;
+
+      update(patch);
+
+      toast.success("Localização encontrada. Confira o pin no mapa.");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Erro ao localizar endereço."));
     } finally {
       setGeocoding(false);
     }
@@ -396,13 +603,24 @@ export function CellForm({
 
   const save = async () => {
     if (
-      !form.name ||
-      !form.address ||
-      !form.neighborhood ||
-      !form.leader_name ||
-      !form.leader_whatsapp
+      !form.name.trim() ||
+      !form.neighborhood.trim() ||
+      !form.leader_name.trim() ||
+      !form.leader_whatsapp.trim()
     ) {
-      toast.error("Preencha todos os campos obrigatórios");
+      toast.error("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    const structuredRequired = !form.id || hasAnyStructuredAddress(form);
+
+    if (structuredRequired && !hasCompleteStructuredAddress(form)) {
+      toast.error("Complete rua, número, bairro, cidade e UF.");
+      return;
+    }
+
+    if (!structuredRequired && !form.address.trim()) {
+      toast.error("Informe o endereço.");
       return;
     }
 
@@ -410,56 +628,87 @@ export function CellForm({
       (form.latitude == null && form.longitude != null) ||
       (form.latitude != null && form.longitude == null)
     ) {
-      toast.error(
-        "Informe latitude e longitude juntas, ou deixe as duas vazias.",
-      );
+      toast.error("Informe latitude e longitude juntas, ou deixe ambas vazias.");
       return;
     }
 
     setSaving(true);
 
     try {
-      const payload = { ...form };
+      const payload: Cell = {
+        ...form,
+      };
+
+      if (hasCompleteStructuredAddress(payload)) {
+        payload.address = buildDisplayAddress(payload);
+      }
 
       if (payload.latitude == null || payload.longitude == null) {
-        const result = await geocodeFn({ data: { address: payload.address } });
+        const address = hasCompleteStructuredAddress(payload)
+          ? buildGeocodeAddress(payload)
+          : payload.address;
+
+        const result = await geocodeFn({
+          data: { address },
+        });
+
         if (result.ok) {
           payload.latitude = result.latitude;
           payload.longitude = result.longitude;
-        }
-      } else {
-        const reverseResult = await reverseGeocodeFn({
-          data: {
-            latitude: payload.latitude,
-            longitude: payload.longitude,
-          },
-        });
 
-        if (reverseResult.ok) {
-          if (reverseResult.address?.trim())
-            payload.address = reverseResult.address.trim();
-          if (reverseResult.neighborhood?.trim())
-            payload.neighborhood = reverseResult.neighborhood.trim();
+          payload.street = trimOrNull(payload.street) ?? trimOrNull(result.street);
+
+          payload.street_number =
+            trimOrNull(payload.street_number) ?? trimOrNull(result.streetNumber);
+
+          payload.city = trimOrNull(payload.city) ?? trimOrNull(result.city);
+
+          payload.state =
+            trimOrNull(payload.state)?.toUpperCase() ??
+            trimOrNull(result.state)?.toUpperCase() ??
+            null;
+
+          payload.postal_code =
+            normalizePostalCode(payload.postal_code) ?? normalizePostalCode(result.postalCode);
+
+          if (!payload.neighborhood.trim() && result.neighborhood) {
+            payload.neighborhood = result.neighborhood;
+          }
+
+          if (hasCompleteStructuredAddress(payload)) {
+            payload.address = buildDisplayAddress(payload);
+          }
         }
       }
 
       const row = {
-        name: payload.name,
+        name: payload.name.trim(),
         network_id: payload.network_id,
         gender: payload.gender,
-        address: payload.address,
-        neighborhood: payload.neighborhood,
+
+        address: payload.address.trim(),
+        street: trimOrNull(payload.street),
+        street_number: trimOrNull(payload.street_number),
+        address_complement: trimOrNull(payload.address_complement),
+        neighborhood: payload.neighborhood.trim(),
+        city: trimOrNull(payload.city),
+        state: trimOrNull(payload.state)?.toUpperCase() ?? null,
+        postal_code: normalizePostalCode(payload.postal_code),
+
         latitude: payload.latitude,
         longitude: payload.longitude,
-        leader_name: payload.leader_name,
+
+        leader_name: payload.leader_name.trim(),
         leader_whatsapp: payload.leader_whatsapp.replace(/\D/g, ""),
-        leader_instagram: payload.leader_instagram || null,
-        leader2_name: payload.leader2_name || null,
+        leader_instagram: trimOrNull(payload.leader_instagram),
+        leader2_name: trimOrNull(payload.leader2_name),
         leader2_whatsapp: payload.leader2_whatsapp
           ? payload.leader2_whatsapp.replace(/\D/g, "")
           : null,
+
         meeting_weekday: payload.meeting_weekday,
         meeting_time: payload.meeting_time,
+
         is_active: payload.is_active,
       };
 
@@ -468,14 +717,25 @@ export function CellForm({
         : supabase.from("cells").insert(row);
 
       const { error } = await operation;
+
       if (error) throw error;
 
-      toast.success("Salvo!");
-      qc.invalidateQueries({ queryKey: ["admin-cells"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-cells"] });
+      toast.success(
+        payload.id ? "Célula atualizada com sucesso." : "Célula cadastrada com sucesso.",
+      );
+
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: ["admin-cells"],
+        }),
+        qc.invalidateQueries({
+          queryKey: ["dashboard-cells"],
+        }),
+      ]);
+
       finishAndClearDraft();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Erro ao salvar a célula."));
     } finally {
       setSaving(false);
     }
@@ -483,8 +743,9 @@ export function CellForm({
 
   useEffect(() => {
     return () => {
-      if (manualCoordinateTimer.current)
+      if (manualCoordinateTimer.current) {
         clearTimeout(manualCoordinateTimer.current);
+      }
     };
   }, []);
 
@@ -497,307 +758,549 @@ export function CellForm({
     onDone();
   };
 
-  // Lock kids network to mista
   useEffect(() => {
-    if (form.network_id === "decolar" && form.gender !== "mista")
+    if (form.network_id === "decolar" && form.gender !== "mista") {
       update({ gender: "mista" });
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.network_id]);
 
   return (
-    <Card className="p-6 space-y-4">
-      {/* Status ativo/inativo */}
-      <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-        <Switch
-          checked={form.is_active}
-          onCheckedChange={(value) => update({ is_active: value })}
-          id="is-active"
-        />
-        <Label htmlFor="is-active" className="cursor-pointer">
-          {form.is_active ? (
-            <span className="text-green-600 font-medium">
-              Célula ativa — aparece na busca pública
-            </span>
-          ) : (
-            <span className="text-muted-foreground">
-              Célula inativa — não aparece na busca
-            </span>
-          )}
-        </Label>
-      </div>
+    <div className="space-y-6">
+      <FormSection
+        number="01"
+        icon={<Building2 className="size-5" />}
+        title="Identificação"
+        description="Informações principais para reconhecer e classificar a célula."
+      >
+        <Row>
+          <Field label="Nome da célula *">
+            <Input
+              value={form.name}
+              onChange={(event) =>
+                update({
+                  name: event.target.value,
+                })
+              }
+              placeholder="Ex.: Nova Estação"
+            />
+          </Field>
 
-      <Row>
-        <Field label="Nome da célula *">
-          <Input
-            value={form.name}
-            onChange={(event) => update({ name: event.target.value })}
-          />
-        </Field>
-        <Field label="Rede *">
+          <Field label="Rede *">
+            <Select
+              value={form.network_id}
+              onValueChange={(value) =>
+                update({
+                  network_id: value,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                {networks?.map((network) => (
+                  <SelectItem key={network.id} value={network.id}>
+                    {network.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Row>
+
+        <Field
+          label="Tipo de célula *"
+          hint={
+            form.network_id === "decolar"
+              ? "A Rede Decolar é sempre classificada como mista."
+              : undefined
+          }
+        >
           <Select
-            value={form.network_id}
-            onValueChange={(value) => update({ network_id: value })}
+            value={form.gender}
+            onValueChange={(value) =>
+              update({
+                gender: value as Cell["gender"],
+              })
+            }
+            disabled={form.network_id === "decolar"}
           >
-            <SelectTrigger>
+            <SelectTrigger className="md:max-w-md">
               <SelectValue />
             </SelectTrigger>
+
             <SelectContent>
-              {networks?.map((network) => (
-                <SelectItem key={network.id} value={network.id}>
-                  {network.name}
-                </SelectItem>
-              ))}
+              <SelectItem value="masculina">Masculina</SelectItem>
+
+              <SelectItem value="feminina">Feminina</SelectItem>
+
+              <SelectItem value="mista">Mista</SelectItem>
             </SelectContent>
           </Select>
         </Field>
-      </Row>
+      </FormSection>
 
-      <Field label="Tipo de célula *">
-        <Select
-          value={form.gender}
-          onValueChange={(value) => update({ gender: value as Cell["gender"] })}
-          disabled={form.network_id === "decolar"}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="masculina">Masculina</SelectItem>
-            <SelectItem value="feminina">Feminina</SelectItem>
-            <SelectItem value="mista">Mista</SelectItem>
-          </SelectContent>
-        </Select>
-        {form.network_id === "decolar" && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Rede Decolar é sempre mista.
-          </p>
+      <FormSection
+        number="02"
+        icon={<MapPin className="size-5" />}
+        title="Localização"
+        description="Endereço estruturado e posição geográfica utilizada nas recomendações."
+      >
+        {legacyAddressMode && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-semibold">Endereço em formato legado</p>
+
+            <p className="mt-1 leading-6 text-amber-800">
+              Esta célula foi cadastrada antes da padronização dos endereços. O dado existente foi
+              preservado:
+            </p>
+
+            <p className="mt-2 font-medium">{form.address}</p>
+
+            <p className="mt-2 text-xs leading-5 text-amber-700">
+              Você pode salvar outras alterações sem converter o endereço. Para padronizá-lo,
+              preencha os campos abaixo e clique em Localizar no mapa.
+            </p>
+          </div>
         )}
-      </Field>
 
-      <Field label="Endereço completo *">
-        <div className="flex gap-2">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
+          <Field label="Rua / Avenida *">
+            <Input
+              value={form.street ?? ""}
+              onChange={(event) =>
+                update({
+                  street: event.target.value,
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+              placeholder="Ex.: Rua da Harmonia"
+            />
+          </Field>
+
+          <Field label="Número *">
+            <Input
+              value={form.street_number ?? ""}
+              onChange={(event) =>
+                update({
+                  street_number: event.target.value,
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+              placeholder="Ex.: 175 ou S/N"
+            />
+          </Field>
+        </div>
+
+        <Field label="Complemento (opcional)">
           <Input
-            value={form.address}
+            value={form.address_complement ?? ""}
             onChange={(event) =>
               update({
-                address: event.target.value,
+                address_complement: event.target.value,
                 latitude: null,
                 longitude: null,
               })
             }
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleGeocode}
-            disabled={geocoding}
-          >
-            <MapPin className="size-4 mr-1" />
-            {geocoding ? "Buscando..." : "Buscar coords"}
-          </Button>
-        </div>
-      </Field>
-
-      <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">Coordenadas da célula</p>
-            <p className="text-xs text-muted-foreground">
-              Após buscar as coordenadas, ajuste o local arrastando o pin no
-              mapa, clicando no mapa ou digitando latitude e longitude
-              manualmente.
-            </p>
-          </div>
-          {(form.latitude != null || form.longitude != null) && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => updateCoordinates(null, null)}
-            >
-              Limpar
-            </Button>
-          )}
-        </div>
-
-        <Row>
-          <Field label="Latitude (opcional)">
-            <Input
-              inputMode="decimal"
-              placeholder="Ex: -8.087859"
-              value={formatCoordinate(form.latitude)}
-              onChange={(event) => updateLatitudeFromInput(event.target.value)}
-            />
-          </Field>
-          <Field label="Longitude (opcional)">
-            <Input
-              inputMode="decimal"
-              placeholder="Ex: -34.894807"
-              value={formatCoordinate(form.longitude)}
-              onChange={(event) => updateLongitudeFromInput(event.target.value)}
-            />
-          </Field>
-        </Row>
-
-        {form.latitude != null && form.longitude != null ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                📍 {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
-              </p>
-              {reverseGeocoding && (
-                <p className="text-xs text-muted-foreground">
-                  Atualizando endereço pelo pin...
-                </p>
-              )}
-            </div>
-            <CoordinatePickerMap
-              latitude={form.latitude}
-              longitude={form.longitude}
-              onChange={(latitude, longitude) =>
-                updateCoordinates(latitude, longitude, { reverseAddress: true })
-              }
-            />
-          </div>
-        ) : (
-          <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed bg-background p-4 text-center text-sm text-muted-foreground">
-            Busque as coordenadas ou digite latitude e longitude para visualizar
-            o pin no mapa.
-          </div>
-        )}
-      </div>
-
-      <Row>
-        <Field label="Bairro *">
-          <Input
-            value={form.neighborhood}
-            onChange={(event) => update({ neighborhood: event.target.value })}
+            placeholder="Apartamento, bloco, casa, ponto de referência..."
           />
         </Field>
-        <Field label="Nome do líder *">
-          <Input
-            value={form.leader_name}
-            onChange={(event) => update({ leader_name: event.target.value })}
-          />
-        </Field>
-      </Row>
 
-      <Row>
-        <Field label="WhatsApp do líder *">
-          <Input
-            placeholder="5511999999999"
-            value={form.leader_whatsapp}
-            onChange={(event) =>
-              update({ leader_whatsapp: event.target.value.replace(/\D/g, "") })
-            }
-          />
-        </Field>
-        <Field label="Instagram (opcional)">
-          <Input
-            placeholder="@celula"
-            value={form.leader_instagram ?? ""}
-            onChange={(event) =>
-              update({ leader_instagram: event.target.value })
-            }
-          />
-        </Field>
-      </Row>
-
-      {/* Segundo líder */}
-      <div className="rounded-lg border p-4 space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">
-          Segundo líder (opcional)
-        </p>
-        <Row>
-          <Field label="Nome do 2º líder">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Bairro *">
             <Input
-              placeholder="Nome"
-              value={form.leader2_name ?? ""}
-              onChange={(event) =>
-                update({ leader2_name: event.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="WhatsApp do 2º líder">
-            <Input
-              placeholder="5511999999999"
-              value={form.leader2_whatsapp ?? ""}
+              value={form.neighborhood}
               onChange={(event) =>
                 update({
-                  leader2_whatsapp:
-                    event.target.value.replace(/\D/g, "") || null,
+                  neighborhood: event.target.value,
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+              placeholder="Ex.: Casa Amarela"
+            />
+          </Field>
+
+          <Field label="Cidade *">
+            <Input
+              value={form.city ?? ""}
+              onChange={(event) =>
+                update({
+                  city: event.target.value,
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+              placeholder="Ex.: Recife"
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[180px_220px_minmax(0,1fr)]">
+          <Field label="UF *">
+            <Select
+              value={form.state || "PE"}
+              onValueChange={(value) =>
+                update({
+                  state: value,
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                {BRAZIL_STATES.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="CEP (opcional)">
+            <Input
+              inputMode="numeric"
+              value={normalizePostalCode(form.postal_code) ?? ""}
+              onChange={(event) =>
+                update({
+                  postal_code: normalizePostalCode(event.target.value),
+                  latitude: null,
+                  longitude: null,
+                })
+              }
+              placeholder="00000-000"
+            />
+          </Field>
+
+          <div className="flex items-end">
+            <Button type="button" className="w-full" onClick={handleGeocode} disabled={geocoding}>
+              <LocateFixed className="mr-2 size-4" />
+
+              {geocoding ? "Localizando..." : "Localizar no mapa"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-muted/20 p-4 md:p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-semibold">Posição geográfica</p>
+
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                O sistema utiliza estas coordenadas para calcular proximidade. Depois de localizar,
+                ajuste o pin se necessário.
+              </p>
+            </div>
+
+            {(form.latitude != null || form.longitude != null) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => updateCoordinates(null, null)}
+              >
+                Limpar coordenadas
+              </Button>
+            )}
+          </div>
+
+          <Row>
+            <Field label="Latitude">
+              <Input
+                inputMode="decimal"
+                value={formatCoordinate(form.latitude)}
+                onChange={(event) => updateLatitudeFromInput(event.target.value)}
+                placeholder="-8.087859"
+              />
+            </Field>
+
+            <Field label="Longitude">
+              <Input
+                inputMode="decimal"
+                value={formatCoordinate(form.longitude)}
+                onChange={(event) => updateLongitudeFromInput(event.target.value)}
+                placeholder="-34.894807"
+              />
+            </Field>
+          </Row>
+
+          <div className="mt-4">
+            {form.latitude != null && form.longitude != null ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>
+                    📍 {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
+                  </span>
+
+                  {reverseGeocoding && <span>Atualizando endereço pelo pin...</span>}
+                </div>
+
+                <CoordinatePickerMap
+                  latitude={form.latitude}
+                  longitude={form.longitude}
+                  onChange={(latitude, longitude) =>
+                    updateCoordinates(latitude, longitude, {
+                      reverseAddress: true,
+                    })
+                  }
+                />
+              </div>
+            ) : (
+              <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed bg-background p-6 text-center text-sm leading-6 text-muted-foreground">
+                Preencha o endereço e clique em “Localizar no mapa” para gerar o ponto geográfico.
+              </div>
+            )}
+          </div>
+        </div>
+      </FormSection>
+
+      <FormSection
+        number="03"
+        icon={<CalendarClock className="size-5" />}
+        title="Reunião"
+        description="Dia e horário utilizados para filtrar as células durante o atendimento."
+      >
+        <Row>
+          <Field label="Dia da semana">
+            <Select
+              value={form.meeting_weekday == null ? "none" : String(form.meeting_weekday)}
+              onValueChange={(value) =>
+                update({
+                  meeting_weekday: value === "none" ? null : Number(value),
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="none">Não definido</SelectItem>
+
+                {WEEKDAYS.map((day) => (
+                  <SelectItem key={day.value} value={String(day.value)}>
+                    {day.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Horário de início">
+            <Input
+              type="time"
+              value={form.meeting_time ? form.meeting_time.slice(0, 5) : ""}
+              onChange={(event) =>
+                update({
+                  meeting_time: event.target.value || null,
                 })
               }
             />
           </Field>
         </Row>
-      </div>
+      </FormSection>
 
-      <Row>
-        <Field label="Dia da semana da reunião">
-          <Select
-            value={
-              form.meeting_weekday == null
-                ? "none"
-                : String(form.meeting_weekday)
-            }
-            onValueChange={(value) =>
+      <FormSection
+        number="04"
+        icon={<UsersRound className="size-5" />}
+        title="Liderança"
+        description="Contatos exibidos para a equipe durante o atendimento de células."
+      >
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="mb-4 text-sm font-semibold">Líder principal</p>
+
+          <div className="space-y-4">
+            <Field label="Nome do líder *">
+              <Input
+                value={form.leader_name}
+                onChange={(event) =>
+                  update({
+                    leader_name: event.target.value,
+                  })
+                }
+                placeholder="Nome completo"
+              />
+            </Field>
+
+            <Row>
+              <Field label="WhatsApp *">
+                <Input
+                  inputMode="tel"
+                  value={form.leader_whatsapp}
+                  onChange={(event) =>
+                    update({
+                      leader_whatsapp: event.target.value.replace(/\D/g, ""),
+                    })
+                  }
+                  placeholder="81999999999"
+                />
+              </Field>
+
+              <Field label="Instagram (opcional)">
+                <Input
+                  value={form.leader_instagram ?? ""}
+                  onChange={(event) =>
+                    update({
+                      leader_instagram: event.target.value,
+                    })
+                  }
+                  placeholder="@celula"
+                />
+              </Field>
+            </Row>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <p className="mb-1 text-sm font-semibold">Segundo líder</p>
+
+          <p className="mb-4 text-xs text-muted-foreground">
+            Opcional. Quando informado, também aparecerá na ficha de atendimento.
+          </p>
+
+          <Row>
+            <Field label="Nome">
+              <Input
+                value={form.leader2_name ?? ""}
+                onChange={(event) =>
+                  update({
+                    leader2_name: event.target.value || null,
+                  })
+                }
+                placeholder="Nome completo"
+              />
+            </Field>
+
+            <Field label="WhatsApp">
+              <Input
+                inputMode="tel"
+                value={form.leader2_whatsapp ?? ""}
+                onChange={(event) =>
+                  update({
+                    leader2_whatsapp: event.target.value.replace(/\D/g, "") || null,
+                  })
+                }
+                placeholder="81999999999"
+              />
+            </Field>
+          </Row>
+        </div>
+      </FormSection>
+
+      <FormSection
+        number="05"
+        icon={<BadgeCheck className="size-5" />}
+        title="Status"
+        description="Defina se esta célula pode participar das recomendações."
+      >
+        <div
+          className={`flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between ${
+            form.is_active ? "border-emerald-200 bg-emerald-50/70" : "bg-muted/30"
+          }`}
+        >
+          <div>
+            <p className={`font-semibold ${form.is_active ? "text-emerald-800" : ""}`}>
+              {form.is_active ? "Célula ativa" : "Célula inativa"}
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              {form.is_active
+                ? "Disponível nas buscas realizadas por membros autenticados."
+                : "Não será considerada nas recomendações enquanto estiver inativa."}
+            </p>
+          </div>
+
+          <Switch
+            checked={form.is_active}
+            onCheckedChange={(value) =>
               update({
-                meeting_weekday: value === "none" ? null : Number(value),
+                is_active: value,
               })
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Não definido</SelectItem>
-              {WEEKDAYS.map((day) => (
-                <SelectItem key={day.value} value={String(day.value)}>
-                  {day.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Horário de início">
-          <Input
-            type="time"
-            value={form.meeting_time ? form.meeting_time.slice(0, 5) : ""}
-            onChange={(event) =>
-              update({ meeting_time: event.target.value || null })
-            }
+            aria-label="Status da célula"
           />
-        </Field>
-      </Row>
+        </div>
+      </FormSection>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={finishAndClearDraft}>
-          Cancelar
-        </Button>
-        <Button onClick={save} disabled={saving}>
-          {saving ? "Salvando…" : "Salvar"}
-        </Button>
+      <Card className="sticky bottom-4 z-20 border-border/70 bg-background/95 p-4 shadow-xl backdrop-blur">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={finishAndClearDraft} disabled={saving}>
+            Cancelar
+          </Button>
+
+          <Button type="button" onClick={save} disabled={saving}>
+            <Save className="mr-2 size-4" />
+
+            {saving ? "Salvando..." : form.id ? "Salvar alterações" : "Cadastrar célula"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function FormSection({
+  number,
+  icon,
+  title,
+  description,
+  children,
+}: {
+  number: string;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden border-border/60 shadow-sm">
+      <div className="border-b bg-muted/15 px-5 py-5 md:px-6">
+        <div className="flex items-start gap-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            {icon}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                {number}
+              </span>
+
+              <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+            </div>
+
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+          </div>
+        </div>
       </div>
+
+      <div className="space-y-5 p-5 md:p-6">{children}</div>
     </Card>
   );
 }
 
-function Row({ children }: { children: React.ReactNode }) {
-  return <div className="grid md:grid-cols-2 gap-4">{children}</div>;
+function Row({ children }: { children: ReactNode }) {
+  return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
+
       {children}
+
+      {hint && <p className="text-xs leading-5 text-muted-foreground">{hint}</p>}
     </div>
   );
 }
