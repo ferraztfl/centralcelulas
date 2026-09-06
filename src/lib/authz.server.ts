@@ -1,9 +1,11 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export type AppAccessRole = "admin" | "user";
+export const SUPER_ADMIN_EMAIL = "thiagoferrazdm@gmail.com";
 
-type ApprovedAccess = {
+export type AppAccessRole = "super_admin" | "admin" | "user";
+
+export type ApprovedAccess = {
   userId: string;
   email: string | null;
   role: AppAccessRole;
@@ -36,10 +38,12 @@ export async function requireApprovedMember(): Promise<ApprovedAccess> {
   }
 
   const userId = userResult.user.id;
+  const email = userResult.user.email?.trim().toLowerCase() ?? null;
 
   const [{ data: profile, error: profileError }, { data: roles, error: rolesError }] =
     await Promise.all([
       supabaseAdmin.from("profiles").select("access_status").eq("id", userId).maybeSingle(),
+
       supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
     ]);
 
@@ -49,6 +53,7 @@ export async function requireApprovedMember(): Promise<ApprovedAccess> {
       rolesError,
       userId,
     });
+
     throw new Error("Não foi possível validar sua permissão.");
   }
 
@@ -57,12 +62,16 @@ export async function requireApprovedMember(): Promise<ApprovedAccess> {
   }
 
   const roleNames = new Set((roles ?? []).map((entry) => entry.role));
+  const hasAdminRole = roleNames.has("admin");
 
-  const role: AppAccessRole | null = roleNames.has("admin")
-    ? "admin"
-    : roleNames.has("user")
-      ? "user"
-      : null;
+  const role: AppAccessRole | null =
+    email === SUPER_ADMIN_EMAIL && hasAdminRole
+      ? "super_admin"
+      : hasAdminRole
+        ? "admin"
+        : roleNames.has("user")
+          ? "user"
+          : null;
 
   if (!role) {
     throw new Error("Sua conta não possui um perfil de acesso válido.");
@@ -70,7 +79,7 @@ export async function requireApprovedMember(): Promise<ApprovedAccess> {
 
   return {
     userId,
-    email: userResult.user.email ?? null,
+    email,
     role,
   };
 }
@@ -78,8 +87,18 @@ export async function requireApprovedMember(): Promise<ApprovedAccess> {
 export async function requireApprovedAdmin(): Promise<ApprovedAccess> {
   const access = await requireApprovedMember();
 
-  if (access.role !== "admin") {
+  if (access.role !== "admin" && access.role !== "super_admin") {
     throw new Error("Esta operação é permitida somente para administradores.");
+  }
+
+  return access;
+}
+
+export async function requireSuperAdmin(): Promise<ApprovedAccess> {
+  const access = await requireApprovedMember();
+
+  if (access.role !== "super_admin" || access.email !== SUPER_ADMIN_EMAIL) {
+    throw new Error("Esta operação é permitida somente para o Super Administrador.");
   }
 
   return access;
