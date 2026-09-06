@@ -53,10 +53,34 @@ function LandingPage() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-accent/40" />
+        <section className="relative isolate overflow-hidden">
+          <picture className="absolute inset-0 -z-30 block">
+            <source
+              media="(max-width: 767px)"
+              srcSet="/culto-adoracao-igreja-do-amor-background-960.webp"
+              type="image/webp"
+            />
 
-          <div className="mx-auto grid min-h-[650px] max-w-7xl items-center gap-12 px-5 py-16 md:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
+            <img
+              src="/culto-adoracao-igreja-do-amor-background.webp"
+              width={1672}
+              height={941}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="h-full w-full object-cover object-center"
+            />
+          </picture>
+
+          <div className="absolute inset-0 -z-20 bg-black/35" />
+
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background/95 via-background/82 to-background/45 md:from-background/92 md:via-background/72 md:to-background/28" />
+
+          <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-background via-background/70 to-transparent" />
+
+          <div className="mx-auto grid min-h-[720px] max-w-7xl items-center gap-12 px-5 py-16 md:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
             <div>
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm backdrop-blur">
                 <MapPin className="size-3.5 text-primary" />
@@ -98,7 +122,7 @@ function LandingPage() {
             <div className="relative mx-auto w-full max-w-xl">
               <div className="absolute -inset-8 -z-10 rounded-full bg-primary/10 blur-3xl" />
 
-              <div className="rounded-[2rem] border bg-card/90 p-8 shadow-2xl backdrop-blur md:p-10">
+              <div className="rounded-[2rem] border border-white/10 bg-card/85 p-8 shadow-2xl backdrop-blur-md md:p-10">
                 <div className="flex items-center justify-between border-b pb-7">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Igreja do Amor</p>
