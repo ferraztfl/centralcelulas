@@ -32,19 +32,16 @@ async function requireApprovedAdmin() {
 
   const userId = userResult.user.id;
 
-  const [{ data: roleData, error: roleError }, { data: profileData, error: profileError }] = await Promise.all([
-    supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle(),
-    supabaseAdmin
-      .from("profiles")
-      .select("access_status")
-      .eq("id", userId)
-      .maybeSingle(),
-  ]);
+  const [{ data: roleData, error: roleError }, { data: profileData, error: profileError }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle(),
+      supabaseAdmin.from("profiles").select("access_status").eq("id", userId).maybeSingle(),
+    ]);
 
   if (roleError || profileError || !roleData || profileData?.access_status !== "approved") {
     throw new Error("Apenas administradores aprovados podem executar esta ação.");
@@ -54,21 +51,22 @@ async function requireApprovedAdmin() {
 }
 
 export const listAdminUsers = createServerFn({ method: "POST" })
-  .inputValidator((d) => EmptyInput.parse(d ?? {}))
+  .validator((d) => EmptyInput.parse(d ?? {}))
   .handler(async () => {
     await requireApprovedAdmin();
 
-    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }, { data: usersResult, error: usersError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("profiles")
-          .select("id, display_name, access_status, created_at, updated_at, approved_at, rejected_at")
-          .order("created_at", { ascending: false }),
-        supabaseAdmin
-          .from("user_roles")
-          .select("user_id, role"),
-        supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      ]);
+    const [
+      { data: profiles, error: profilesError },
+      { data: roles, error: rolesError },
+      { data: usersResult, error: usersError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id, display_name, access_status, created_at, updated_at, approved_at, rejected_at")
+        .order("created_at", { ascending: false }),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    ]);
 
     if (profilesError) throw profilesError;
     if (rolesError) throw rolesError;
@@ -114,7 +112,7 @@ export const listAdminUsers = createServerFn({ method: "POST" })
   });
 
 export const approveAdminUser = createServerFn({ method: "POST" })
-  .inputValidator((d) => UserActionInput.parse(d))
+  .validator((d) => UserActionInput.parse(d))
   .handler(async ({ data }) => {
     const currentAdminId = await requireApprovedAdmin();
 
@@ -131,15 +129,13 @@ export const approveAdminUser = createServerFn({ method: "POST" })
 
     if (profileError) throw profileError;
 
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .upsert(
-        {
-          user_id: data.userId,
-          role: "admin",
-        },
-        { onConflict: "user_id,role" },
-      );
+    const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
+      {
+        user_id: data.userId,
+        role: "user",
+      },
+      { onConflict: "user_id,role" },
+    );
 
     if (roleError) throw roleError;
 
@@ -147,7 +143,7 @@ export const approveAdminUser = createServerFn({ method: "POST" })
   });
 
 export const rejectAdminUser = createServerFn({ method: "POST" })
-  .inputValidator((d) => UserActionInput.parse(d))
+  .validator((d) => UserActionInput.parse(d))
   .handler(async ({ data }) => {
     const currentAdminId = await requireApprovedAdmin();
 
@@ -169,8 +165,7 @@ export const rejectAdminUser = createServerFn({ method: "POST" })
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .delete()
-      .eq("user_id", data.userId)
-      .eq("role", "admin");
+      .eq("user_id", data.userId);
 
     if (roleError) throw roleError;
 
