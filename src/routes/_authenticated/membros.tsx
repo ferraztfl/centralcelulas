@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WEEKDAYS, weekdayLabel, formatMeetingTime } from "@/lib/weekdays";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/membros")({
   head: () => ({
@@ -79,9 +80,53 @@ const BRAZIL_STATES = [
   "TO",
 ] as const;
 
+const MEMBER_SEARCH_STORAGE_VERSION = 1;
+const MEMBER_SEARCH_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+
+function memberSearchStorageKey(userId: string) {
+  return `centralcelulas:member-search:v${MEMBER_SEARCH_STORAGE_VERSION}:${userId}`;
+}
+
+function readStoredSearch<T>(userId: string) {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const key = memberSearchStorageKey(userId);
+    const raw = window.sessionStorage.getItem(key);
+
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as {
+      savedAt?: number;
+      form?: Form;
+      result?: T | null;
+    };
+
+    if (
+      typeof parsed.savedAt !== "number" ||
+      Date.now() - parsed.savedAt > MEMBER_SEARCH_MAX_AGE_MS ||
+      !parsed.form
+    ) {
+      window.sessionStorage.removeItem(key);
+      return null;
+    }
+
+    return {
+      form: parsed.form,
+      result: parsed.result ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function MemberSearch() {
   const searchFn = useServerFn(searchCells);
-  const [form, setForm] = useState<Form>({
+  const { user } = useAuth();
+
+  type SearchResult = Awaited<ReturnType<typeof searchFn>>;
+
+  const defaultForm: Form = {
     street: "",
     number: "",
     neighborhood: "",
@@ -93,9 +138,18 @@ function MemberSearch() {
     participation: "",
     bothConverted: "",
     weekday: "",
-  });
+  };
+
+  const [restoredSearch] = useState(() =>
+    user?.id ? readStoredSearch<SearchResult>(user.id) : null,
+  );
+
+  const [form, setForm] = useState<Form>(restoredSearch?.form ?? defaultForm);
+
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Awaited<ReturnType<typeof searchFn>> | null>(null);
+
+  const [result, setResult] = useState<SearchResult | null>(restoredSearch?.result ?? null);
+
   const resultAnchorRef = useRef<HTMLDivElement>(null);
 
   const { data: networks } = useQuery({
@@ -108,6 +162,23 @@ function MemberSearch() {
   const netMap = Object.fromEntries((networks ?? []).map((n) => [n.id, n]));
 
   const update = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
+
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+
+    try {
+      window.sessionStorage.setItem(
+        memberSearchStorageKey(user.id),
+        JSON.stringify({
+          savedAt: Date.now(),
+          form,
+          result,
+        }),
+      );
+    } catch {
+      // Falhas de storage não devem impedir a busca.
+    }
+  }, [user?.id, form, result]);
 
   useEffect(() => {
     if (!result) return;
