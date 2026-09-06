@@ -27,6 +27,7 @@ type GeoapifyFeature = {
     state?: string;
     state_code?: string;
     country_code?: string;
+    postcode?: string;
   };
   geometry?: {
     coordinates?: [number, number];
@@ -241,6 +242,12 @@ async function geocode(address: string) {
     latitude: lat,
     longitude: lon,
     formatted: extractShortAddress(properties, properties?.formatted ?? address),
+    street: properties?.street ?? null,
+    streetNumber: properties?.housenumber ?? null,
+    neighborhood: extractNeighborhood(properties),
+    city: extractCity(properties),
+    state: extractStateCode(properties),
+    postalCode: properties?.postcode ?? null,
   };
 }
 
@@ -275,7 +282,12 @@ async function reverseGeocode(latitude: number, longitude: number) {
     ok: true as const,
     address: extractShortAddress(properties, properties?.formatted ?? `${latitude}, ${longitude}`),
     formatted: properties?.formatted ?? null,
+    street: properties?.street ?? null,
+    streetNumber: properties?.housenumber ?? null,
     neighborhood: extractNeighborhood(properties),
+    city: extractCity(properties),
+    state: extractStateCode(properties),
+    postalCode: properties?.postcode ?? null,
   };
 }
 
