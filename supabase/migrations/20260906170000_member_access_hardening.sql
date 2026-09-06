@@ -69,7 +69,7 @@ GRANT EXECUTE ON FUNCTION public.is_approved_admin(UUID)
 
 
 -- ------------------------------------------------
--- Administrador inicial único
+-- Administrador inicial
 -- ------------------------------------------------
 
 -- O administrador principal é garantido abaixo.
