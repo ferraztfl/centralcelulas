@@ -78,7 +78,7 @@ function LandingPage() {
 
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/88 via-slate-950/68 to-slate-950/30 md:from-slate-950/84 md:via-slate-950/60 md:to-slate-950/20" />
 
-          <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-background via-background/70 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 -z-10 h-16 bg-gradient-to-t from-background/95 via-background/35 to-transparent md:h-20" />
 
           <div className="mx-auto grid min-h-[720px] max-w-7xl items-center gap-12 px-5 py-16 md:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
             <div>
@@ -160,7 +160,7 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y bg-muted/30">
+        <section className="border-b bg-muted/30">
           <div className="mx-auto grid max-w-7xl gap-6 px-5 py-12 md:grid-cols-3 md:px-8">
             <InfoCard
               number="01"
