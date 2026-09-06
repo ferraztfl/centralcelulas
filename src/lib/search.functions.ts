@@ -53,9 +53,7 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
   const lat1 = (a.lat * Math.PI) / 180;
   const lat2 = (b.lat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
@@ -115,9 +113,14 @@ async function geocodeAddressWithGeoapify(address: string) {
 }
 
 export const searchCells = createServerFn({ method: "POST" })
-  .inputValidator((data) => Input.parse(data))
+  .validator((data) => Input.parse(data))
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ supabaseAdmin }, { requireApprovedMember }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("@/lib/authz.server"),
+    ]);
+
+    await requireApprovedMember();
 
     const geocoded = await geocodeAddressWithGeoapify(data.address);
 
@@ -129,11 +132,22 @@ export const searchCells = createServerFn({ method: "POST" })
     const visitorFormatted = geocoded.formatted;
 
     const [{ data: cellsData, error }, { data: adjData }] = await Promise.all([
-      supabaseAdmin.from("cells").select("*").eq("is_active", true),
+      supabaseAdmin
+        .from("cells")
+        .select(
+          "id,name,network_id,gender,address,neighborhood,latitude,longitude,leader_name,leader_whatsapp,leader_instagram,leader2_name,leader2_whatsapp,meeting_weekday,meeting_time,is_active",
+        )
+        .eq("is_active", true),
       supabaseAdmin.from("neighborhood_adjacencies").select("neighborhood_a,neighborhood_b"),
     ]);
 
-    if (error) return { ok: false as const, error: error.message };
+    if (error) {
+      console.error("[searchCells] Database query failed", error);
+      return {
+        ok: false as const,
+        error: "Não foi possível realizar a busca neste momento.",
+      };
+    }
 
     const cells = (cellsData ?? []) as CellRow[];
     const normalize = (value: string) => value.trim().toLowerCase();
@@ -141,8 +155,10 @@ export const searchCells = createServerFn({ method: "POST" })
     const adjacentNeighborhoods = new Set<string>();
 
     for (const adjacency of adjData ?? []) {
-      if (adjacency.neighborhood_a === visitorNeighborhood) adjacentNeighborhoods.add(adjacency.neighborhood_b);
-      if (adjacency.neighborhood_b === visitorNeighborhood) adjacentNeighborhoods.add(adjacency.neighborhood_a);
+      if (adjacency.neighborhood_a === visitorNeighborhood)
+        adjacentNeighborhoods.add(adjacency.neighborhood_b);
+      if (adjacency.neighborhood_b === visitorNeighborhood)
+        adjacentNeighborhoods.add(adjacency.neighborhood_a);
     }
 
     const isMarriedConvertedSpouse = data.marital === "casado" && data.spouseConverted === true;

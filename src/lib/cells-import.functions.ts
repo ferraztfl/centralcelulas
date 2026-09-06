@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 
 const RowSchema = z.object({
   name: z.string().min(1).max(200),
@@ -13,7 +14,11 @@ const RowSchema = z.object({
   leader2_name: z.string().max(200).optional().nullable(),
   leader2_whatsapp: z.string().max(30).optional().nullable(),
   meeting_weekday: z.number().int().min(0).max(6).nullable().optional(),
-  meeting_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
+  meeting_time: z
+    .string()
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/)
+    .nullable()
+    .optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -21,6 +26,8 @@ const Input = z.object({
   rows: z.array(RowSchema).min(1).max(500),
   geocode: z.boolean().default(true),
 });
+
+type CellInsert = Database["public"]["Tables"]["cells"]["Insert"];
 
 type GeoapifyFeature = {
   properties?: {
@@ -68,9 +75,14 @@ async function geocodeOne(address: string, apiKey: string) {
 }
 
 export const importCells = createServerFn({ method: "POST" })
-  .inputValidator((data) => Input.parse(data))
+  .validator((data) => Input.parse(data))
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ supabaseAdmin }, { requireApprovedAdmin }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("@/lib/authz.server"),
+    ]);
+
+    await requireApprovedAdmin();
 
     const { data: networks } = await supabaseAdmin.from("networks").select("id");
     const validNetworks = new Set((networks ?? []).map((network) => network.id));
@@ -78,7 +90,7 @@ export const importCells = createServerFn({ method: "POST" })
     const geoapifyKey = process.env.GEOAPIFY_API_KEY ?? "";
     const canGeocode = data.geocode && !!geoapifyKey;
 
-    const inserts: any[] = [];
+    const inserts: CellInsert[] = [];
     const errors: Array<{ line: number; error: string }> = [];
 
     for (let index = 0; index < data.rows.length; index++) {

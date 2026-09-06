@@ -7,10 +7,8 @@ const ReverseInputSchema = z.object({
   longitude: z.number().min(-180).max(180),
 });
 
-const GEOAPIFY_FORWARD_GEOCODE_URL =
-  "https://api.geoapify.com/v1/geocode/search";
-const GEOAPIFY_REVERSE_GEOCODE_URL =
-  "https://api.geoapify.com/v1/geocode/reverse";
+const GEOAPIFY_FORWARD_GEOCODE_URL = "https://api.geoapify.com/v1/geocode/search";
+const GEOAPIFY_REVERSE_GEOCODE_URL = "https://api.geoapify.com/v1/geocode/reverse";
 
 type GeoapifyFeature = {
   properties?: {
@@ -172,15 +170,10 @@ function extractStateCode(properties: GeoapifyFeature["properties"]) {
   return null;
 }
 
-function extractShortAddress(
-  properties: GeoapifyFeature["properties"],
-  fallback: string,
-) {
+function extractShortAddress(properties: GeoapifyFeature["properties"], fallback: string) {
   if (!properties) return fallback;
 
-  const streetParts = [properties.street, properties.housenumber]
-    .filter(Boolean)
-    .join(", ");
+  const streetParts = [properties.street, properties.housenumber].filter(Boolean).join(", ");
 
   const city = extractCity(properties);
   const stateCode = extractStateCode(properties);
@@ -272,10 +265,7 @@ async function reverseGeocode(latitude: number, longitude: number) {
   if (!feature) {
     return {
       ok: false as const,
-      error:
-        json.message ||
-        json.error ||
-        "Não foi possível identificar o endereço desse ponto.",
+      error: json.message || json.error || "Não foi possível identificar o endereço desse ponto.",
     };
   }
 
@@ -283,21 +273,26 @@ async function reverseGeocode(latitude: number, longitude: number) {
 
   return {
     ok: true as const,
-    address: extractShortAddress(
-      properties,
-      properties?.formatted ?? `${latitude}, ${longitude}`,
-    ),
+    address: extractShortAddress(properties, properties?.formatted ?? `${latitude}, ${longitude}`),
     formatted: properties?.formatted ?? null,
     neighborhood: extractNeighborhood(properties),
   };
 }
 
 export const geocodeAddress = createServerFn({ method: "POST" })
-  .inputValidator((data) => AddressInputSchema.parse(data))
-  .handler(async ({ data }) => geocode(data.address));
+  .validator((data) => AddressInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireApprovedAdmin } = await import("@/lib/authz.server");
+    await requireApprovedAdmin();
+    return geocode(data.address);
+  });
 
 export const reverseGeocodeCoordinates = createServerFn({ method: "POST" })
-  .inputValidator((data) => ReverseInputSchema.parse(data))
-  .handler(async ({ data }) => reverseGeocode(data.latitude, data.longitude));
+  .validator((data) => ReverseInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireApprovedAdmin } = await import("@/lib/authz.server");
+    await requireApprovedAdmin();
+    return reverseGeocode(data.latitude, data.longitude);
+  });
 
 export { geocode as _geocode, reverseGeocode as _reverseGeocode };
