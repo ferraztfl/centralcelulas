@@ -24,6 +24,7 @@ import {
   MessageCircle,
   MapPin,
   Phone,
+  RotateCcw,
   Search,
   Sparkles,
   Star,
@@ -279,6 +280,7 @@ function MemberSearch() {
   const [result, setResult] = useState<SearchResult | null>(restoredSearch?.result ?? null);
 
   const resultAnchorRef = useRef<HTMLDivElement>(null);
+  const searchFormRef = useRef<HTMLElement>(null);
 
   const { data: networks } = useQuery({
     queryKey: ["networks"],
@@ -290,6 +292,48 @@ function MemberSearch() {
   const netMap = Object.fromEntries((networks ?? []).map((n) => [n.id, n]));
 
   const update = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
+
+  const startNewService = () => {
+    const confirmed = window.confirm(
+      "Iniciar um novo atendimento? Os dados e resultados da busca atual serão limpos.",
+    );
+
+    if (!confirmed) return;
+
+    if (user?.id) {
+      try {
+        window.sessionStorage.removeItem(memberSearchStorageKey(user.id));
+      } catch {
+        // A limpeza visual continua mesmo se o storage estiver indisponível.
+      }
+    }
+
+    setForm({
+      street: "",
+      number: "",
+      neighborhood: "",
+      city: "Recife",
+      state: "PE",
+      postalCode: "",
+      age: "",
+      gender: "",
+      participation: "",
+      bothConverted: "",
+      weekday: "",
+    });
+
+    setResult(null);
+    setBusy(false);
+
+    window.requestAnimationFrame(() => {
+      searchFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    toast.success("Novo atendimento iniciado.");
+  };
 
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
@@ -387,7 +431,7 @@ function MemberSearch() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-4xl px-5 pb-14 md:px-8">
+      <section ref={searchFormRef} className="mx-auto max-w-4xl scroll-mt-24 px-5 pb-14 md:px-8">
         <Card className="overflow-hidden border-border/60 shadow-xl shadow-slate-950/5">
           <div className="border-b bg-gradient-to-r from-slate-950 to-blue-950 px-6 py-5 text-white md:px-8">
             <div className="flex items-center gap-3">
@@ -671,23 +715,30 @@ function MemberSearch() {
               </p>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0"
-              onClick={() => {
-                const summary = result.results
-                  .map((cell, index) =>
-                    buildCellClipboardText(cell, netMap[cell.network_id]?.name, index + 1),
-                  )
-                  .join("\n\n------------------------------\n\n");
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" className="shrink-0" onClick={startNewService}>
+                <RotateCcw className="mr-2 size-4" />
+                Novo atendimento
+              </Button>
 
-                void copyToClipboard(summary, "Resumo das opções copiado.");
-              }}
-            >
-              <Copy className="mr-2 size-4" />
-              Copiar resumo das opções
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => {
+                  const summary = result.results
+                    .map((cell, index) =>
+                      buildCellClipboardText(cell, netMap[cell.network_id]?.name, index + 1),
+                    )
+                    .join("\n\n------------------------------\n\n");
+
+                  void copyToClipboard(summary, "Resumo das opções copiado.");
+                }}
+              >
+                <Copy className="mr-2 size-4" />
+                Copiar resumo das opções
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.95fr)]">
