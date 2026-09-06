@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedMembrosRouteImport } from './routes/_authenticated/membros'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminNeighborhoodsRouteImport } from './routes/_authenticated/admin.neighborhoods'
 import { Route as AuthenticatedAdminImportRouteImport } from './routes/_authenticated/admin.import'
@@ -43,6 +44,11 @@ const AuthenticatedMembrosRoute = AuthenticatedMembrosRouteImport.update({
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminSettingsRoute =
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/cells/$id': typeof AuthenticatedAdminCellsIdRoute
   '/admin/cells/new': typeof AuthenticatedAdminCellsNewRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/cells/$id': typeof AuthenticatedAdminCellsIdRoute
   '/admin/cells/new': typeof AuthenticatedAdminCellsNewRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/import': typeof AuthenticatedAdminImportRoute
   '/_authenticated/admin/neighborhoods': typeof AuthenticatedAdminNeighborhoodsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/cells/$id': typeof AuthenticatedAdminCellsIdRoute
   '/_authenticated/admin/cells/new': typeof AuthenticatedAdminCellsNewRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/admin/import'
     | '/admin/neighborhoods'
     | '/admin/settings'
+    | '/admin/users'
     | '/admin/'
     | '/admin/cells/$id'
     | '/admin/cells/new'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/admin/import'
     | '/admin/neighborhoods'
     | '/admin/settings'
+    | '/admin/users'
     | '/admin'
     | '/admin/cells/$id'
     | '/admin/cells/new'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/import'
     | '/_authenticated/admin/neighborhoods'
     | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/users'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/cells/$id'
     | '/_authenticated/admin/cells/new'
@@ -201,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/settings': {
@@ -254,6 +273,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminImportRoute: typeof AuthenticatedAdminImportRoute
   AuthenticatedAdminNeighborhoodsRoute: typeof AuthenticatedAdminNeighborhoodsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCellsIdRoute: typeof AuthenticatedAdminCellsIdRoute
   AuthenticatedAdminCellsNewRoute: typeof AuthenticatedAdminCellsNewRoute
@@ -265,6 +285,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminImportRoute: AuthenticatedAdminImportRoute,
   AuthenticatedAdminNeighborhoodsRoute: AuthenticatedAdminNeighborhoodsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminCellsIdRoute: AuthenticatedAdminCellsIdRoute,
   AuthenticatedAdminCellsNewRoute: AuthenticatedAdminCellsNewRoute,

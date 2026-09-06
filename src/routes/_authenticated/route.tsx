@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
   Upload,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ type NavTarget =
   | "/admin/cells/new"
   | "/admin/import"
   | "/admin/neighborhoods"
+  | "/admin/users"
   | "/admin/settings";
 
 type NavItem = {
@@ -153,6 +155,11 @@ function AuthLayout() {
         to: "/admin/neighborhoods",
         icon: Link2,
         label: "Bairros vizinhos",
+      },
+      {
+        to: "/admin/users",
+        icon: Users,
+        label: "Usuários",
       },
       {
         to: "/admin/settings",
