@@ -72,12 +72,9 @@ GRANT EXECUTE ON FUNCTION public.is_approved_admin(UUID)
 -- Administrador inicial único
 -- ------------------------------------------------
 
--- Retira função ADMIN de qualquer outra conta.
-DELETE FROM public.user_roles ur
-USING auth.users u
-WHERE ur.user_id = u.id
-  AND ur.role = 'admin'::public.app_role
-  AND lower(COALESCE(u.email, '')) <> 'thiagoferrazdm@gmail.com';
+-- O administrador principal é garantido abaixo.
+-- Não removemos outros administradores aqui para permitir
+-- que novos admins sejam adicionados futuramente.
 
 -- Garante aprovação do administrador principal, se a conta existir.
 UPDATE public.profiles p
@@ -160,17 +157,11 @@ CREATE TRIGGER on_auth_user_created
 
 ALTER TABLE public.cells ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON public.cells FROM anon;
-
-REVOKE INSERT, UPDATE, DELETE
+REVOKE ALL
 ON public.cells
-FROM authenticated;
+FROM anon, authenticated;
 
-GRANT SELECT
-ON public.cells
-TO authenticated;
-
-GRANT INSERT, UPDATE, DELETE
+GRANT SELECT, INSERT, UPDATE, DELETE
 ON public.cells
 TO authenticated;
 
@@ -227,7 +218,7 @@ USING (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-REVOKE INSERT, UPDATE, DELETE
+REVOKE ALL
 ON public.profiles
 FROM anon, authenticated;
 
@@ -267,7 +258,7 @@ USING (
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
-REVOKE INSERT, UPDATE, DELETE
+REVOKE ALL
 ON public.user_roles
 FROM anon, authenticated;
 
@@ -309,7 +300,7 @@ ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL
 ON public.app_settings
-FROM anon;
+FROM anon, authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON public.app_settings
@@ -354,7 +345,7 @@ ALTER TABLE public.neighborhood_adjacencies ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL
 ON public.neighborhood_adjacencies
-FROM anon;
+FROM anon, authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON public.neighborhood_adjacencies
@@ -368,6 +359,9 @@ DROP POLICY IF EXISTS "Anyone reads adjacencies"
 ON public.neighborhood_adjacencies;
 
 DROP POLICY IF EXISTS "Admins insert adjacencies"
+ON public.neighborhood_adjacencies;
+
+DROP POLICY IF EXISTS "Admins update adjacencies"
 ON public.neighborhood_adjacencies;
 
 DROP POLICY IF EXISTS "Admins delete adjacencies"
@@ -393,6 +387,34 @@ WITH CHECK (
 -- Dados institucionais não sensíveis podem continuar públicos,
 -- mas alterações exigem ADMIN aprovado.
 -- ================================================================
+
+ALTER TABLE public.networks ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL
+ON public.networks
+FROM anon, authenticated;
+
+GRANT SELECT
+ON public.networks
+TO anon, authenticated;
+
+GRANT INSERT, UPDATE, DELETE
+ON public.networks
+TO authenticated;
+
+GRANT ALL
+ON public.networks
+TO service_role;
+
+DROP POLICY IF EXISTS "Anyone reads networks"
+ON public.networks;
+
+CREATE POLICY "Anyone reads networks"
+ON public.networks
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
 
 DROP POLICY IF EXISTS "Admins manage networks"
 ON public.networks;
