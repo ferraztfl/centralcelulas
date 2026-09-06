@@ -244,19 +244,25 @@ export const promoteUserToAdmin = createServerFn({
       throw new Error("Apenas usuários aprovados podem ser promovidos a administrador.");
     }
 
+    const { error: insertRoleError } = await supabaseAdmin.from("user_roles").upsert(
+      {
+        user_id: data.userId,
+        role: "admin",
+      },
+      {
+        onConflict: "user_id,role",
+      },
+    );
+
+    if (insertRoleError) throw insertRoleError;
+
     const { error: deleteRoleError } = await supabaseAdmin
       .from("user_roles")
       .delete()
-      .eq("user_id", data.userId);
+      .eq("user_id", data.userId)
+      .eq("role", "user");
 
     if (deleteRoleError) throw deleteRoleError;
-
-    const { error: insertRoleError } = await supabaseAdmin.from("user_roles").insert({
-      user_id: data.userId,
-      role: "admin",
-    });
-
-    if (insertRoleError) throw insertRoleError;
 
     return {
       ok: true as const,
@@ -285,19 +291,25 @@ export const demoteAdminToUser = createServerFn({
       throw new Error("Este usuário não é administrador.");
     }
 
+    const { error: insertRoleError } = await supabaseAdmin.from("user_roles").upsert(
+      {
+        user_id: data.userId,
+        role: "user",
+      },
+      {
+        onConflict: "user_id,role",
+      },
+    );
+
+    if (insertRoleError) throw insertRoleError;
+
     const { error: deleteRoleError } = await supabaseAdmin
       .from("user_roles")
       .delete()
-      .eq("user_id", data.userId);
+      .eq("user_id", data.userId)
+      .eq("role", "admin");
 
     if (deleteRoleError) throw deleteRoleError;
-
-    const { error: insertRoleError } = await supabaseAdmin.from("user_roles").insert({
-      user_id: data.userId,
-      role: "user",
-    });
-
-    if (insertRoleError) throw insertRoleError;
 
     return {
       ok: true as const,
