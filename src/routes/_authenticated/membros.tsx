@@ -36,24 +36,62 @@ export const Route = createFileRoute("/_authenticated/membros")({
 });
 
 type Form = {
-  address: string;
+  street: string;
+  number: string;
   neighborhood: string;
+  city: string;
+  state: string;
+  postalCode: string;
   age: string;
   gender: "masculino" | "feminino" | "";
-  marital: "solteiro" | "casado" | "outro" | "";
-  spouseConverted: "sim" | "nao" | "";
+  participation: "individual" | "casal" | "";
+  bothConverted: "sim" | "nao" | "";
   weekday: string;
 };
+
+const BRAZIL_STATES = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+] as const;
 
 function MemberSearch() {
   const searchFn = useServerFn(searchCells);
   const [form, setForm] = useState<Form>({
-    address: "",
+    street: "",
+    number: "",
     neighborhood: "",
+    city: "Recife",
+    state: "PE",
+    postalCode: "",
     age: "",
     gender: "",
-    marital: "",
-    spouseConverted: "",
+    participation: "",
+    bothConverted: "",
     weekday: "",
   });
   const [busy, setBusy] = useState(false);
@@ -72,24 +110,38 @@ function MemberSearch() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.address || !form.neighborhood || !form.age || !form.gender || !form.marital) {
-      toast.error("Preencha todos os campos");
+    if (
+      !form.street.trim() ||
+      !form.number.trim() ||
+      !form.neighborhood.trim() ||
+      !form.city.trim() ||
+      !form.state ||
+      !form.age ||
+      !form.gender ||
+      !form.participation
+    ) {
+      toast.error("Preencha os campos obrigatórios.");
       return;
     }
-    if (form.marital === "casado" && !form.spouseConverted) {
-      toast.error("Indique se o cônjuge é convertido");
+
+    if (form.participation === "casal" && !form.bothConverted) {
+      toast.error("Indique se ambos são cristãos convertidos.");
       return;
     }
     setBusy(true);
     try {
       const r = await searchFn({
         data: {
-          address: form.address,
-          neighborhood: form.neighborhood,
+          street: form.street.trim(),
+          number: form.number.trim(),
+          neighborhood: form.neighborhood.trim(),
+          city: form.city.trim(),
+          state: form.state,
+          postalCode: form.postalCode.trim() || null,
           age: Number(form.age),
           gender: form.gender as "masculino" | "feminino",
-          marital: form.marital as "solteiro" | "casado" | "outro",
-          spouseConverted: form.spouseConverted === "sim",
+          participation: form.participation as "individual" | "casal",
+          bothConverted: form.participation === "casal" && form.bothConverted === "sim",
           weekday: form.weekday === "" ? null : Number(form.weekday),
         },
       });
@@ -105,120 +157,281 @@ function MemberSearch() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/30">
-      <section className="max-w-6xl mx-auto px-4 pt-12 pb-8 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3 py-1 text-xs font-medium">
-          <Sparkles className="size-3" /> Algoritmo inteligente de sugestão
+      <section className="mx-auto max-w-6xl px-5 pb-8 pt-10 text-center md:px-8 md:pt-14">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+          <Sparkles className="size-3.5" />
+          Localizador inteligente
         </span>
-        <h2 className="mt-4 text-4xl md:text-5xl font-bold tracking-tight">
-          Vamos encontrar sua{" "}
-          <span className="bg-gradient-to-r from-primary to-net-impulse bg-clip-text text-transparent">
-            célula ideal
-          </span>
+
+        <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
+          Encontre a célula mais adequada
+          <span className="text-primary"> para você</span>
         </h2>
-        <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-          Responda algumas perguntas e mostraremos as 3 melhores opções perto de você.
+
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+          Informe sua localização e seu perfil. Cruzaremos proximidade, rede e disponibilidade para
+          sugerir as melhores opções.
         </p>
       </section>
 
-      <section className="max-w-3xl mx-auto px-4 pb-12">
-        <Card className="p-6 md:p-8 shadow-xl border-border/60">
-          <form onSubmit={submit} className="space-y-5">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field label="Endereço: Rua, número e cidade">
-                <Input
-                  value={form.address}
-                  onChange={(e) => update({ address: e.target.value })}
-                  placeholder="Rua, número, cidade"
-                />
-              </Field>
-              <Field label="Bairro">
-                <Input
-                  value={form.neighborhood}
-                  onChange={(e) => update({ neighborhood: e.target.value })}
-                />
-              </Field>
+      <section className="mx-auto max-w-4xl px-5 pb-14 md:px-8">
+        <Card className="overflow-hidden border-border/60 shadow-xl shadow-slate-950/5">
+          <div className="border-b bg-gradient-to-r from-slate-950 to-blue-950 px-6 py-5 text-white md:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white/10">
+                <Search className="size-5" />
+              </div>
+
+              <div>
+                <h3 className="font-semibold">Busca personalizada</h3>
+                <p className="mt-0.5 text-sm text-white/65">
+                  Campos separados aumentam a precisão da localização.
+                </p>
+              </div>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field label="Idade">
-                <Input
-                  type="number"
-                  min={0}
-                  max={120}
-                  value={form.age}
-                  onChange={(e) => update({ age: e.target.value })}
-                />
-              </Field>
-              <Field label="Gênero">
+          </div>
+
+          <form onSubmit={submit} className="space-y-8 p-6 md:p-8">
+            <div className="space-y-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-base font-semibold">
+                  <MapPin className="size-4 text-primary" />
+                  Sua localização
+                </h3>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Informe o endereço onde você mora ou a região de onde pretende sair para a célula.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-12">
+                <div className="md:col-span-9">
+                  <Field label="Rua / Avenida *">
+                    <Input
+                      className="h-11"
+                      value={form.street}
+                      onChange={(event) => update({ street: event.target.value })}
+                      placeholder="Ex.: Rua da Harmonia"
+                      autoComplete="address-line1"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-3">
+                  <Field label="Número *">
+                    <Input
+                      className="h-11"
+                      value={form.number}
+                      onChange={(event) => update({ number: event.target.value })}
+                      placeholder="Ex.: 120"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-6">
+                  <Field label="Bairro *">
+                    <Input
+                      className="h-11"
+                      value={form.neighborhood}
+                      onChange={(event) => update({ neighborhood: event.target.value })}
+                      placeholder="Ex.: Casa Forte"
+                      autoComplete="address-level3"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-6">
+                  <Field label="Cidade *">
+                    <Input
+                      className="h-11"
+                      value={form.city}
+                      onChange={(event) => update({ city: event.target.value })}
+                      placeholder="Ex.: Recife"
+                      autoComplete="address-level2"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-4">
+                  <Field label="UF *">
+                    <Select value={form.state} onValueChange={(value) => update({ state: value })}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {BRAZIL_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                <div className="md:col-span-8">
+                  <Field label="CEP (opcional)">
+                    <Input
+                      className="h-11"
+                      value={form.postalCode}
+                      onChange={(event) => update({ postalCode: event.target.value })}
+                      placeholder="Ex.: 52060-000"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                    />
+                  </Field>
+
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Se souber o CEP, informe-o para aumentar ainda mais a precisão.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-7">
+              <div>
+                <h3 className="text-base font-semibold">Seu perfil</h3>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Usamos essas informações apenas para indicar a rede mais adequada.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <Field label="Idade *">
+                  <Input
+                    className="h-11"
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={form.age}
+                    onChange={(event) => update({ age: event.target.value })}
+                    placeholder="Sua idade"
+                  />
+                </Field>
+
+                <Field label="Gênero *">
+                  <Select
+                    value={form.gender}
+                    onValueChange={(value) => update({ gender: value as Form["gender"] })}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="mt-5">
+                <Field label="Para quem é esta busca? *">
+                  <RadioGroup
+                    value={form.participation}
+                    onValueChange={(value) =>
+                      update({
+                        participation: value as Form["participation"],
+                        bothConverted: "",
+                      })
+                    }
+                    className="grid gap-3 sm:grid-cols-2"
+                  >
+                    <label
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                        form.participation === "individual"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "hover:bg-muted/40"
+                      }`}
+                    >
+                      <RadioGroupItem value="individual" className="mt-1" />
+
+                      <div>
+                        <p className="font-medium">Busca individual</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Estou procurando uma célula para mim.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                        form.participation === "casal"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "hover:bg-muted/40"
+                      }`}
+                    >
+                      <RadioGroupItem value="casal" className="mt-1" />
+
+                      <div>
+                        <p className="font-medium">Busca para casal</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Estamos procurando uma célula para participarmos juntos.
+                        </p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                </Field>
+              </div>
+
+              {form.participation === "casal" && (
+                <div className="mt-5 rounded-2xl border border-primary/15 bg-primary/5 p-5">
+                  <Field label="Vocês dois são cristãos convertidos? *">
+                    <RadioGroup
+                      value={form.bothConverted}
+                      onValueChange={(value) =>
+                        update({ bothConverted: value as Form["bothConverted"] })
+                      }
+                      className="flex flex-wrap gap-6"
+                    >
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <RadioGroupItem value="sim" />
+                        Sim
+                      </label>
+
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <RadioGroupItem value="nao" />
+                        Não
+                      </label>
+                    </RadioGroup>
+                  </Field>
+
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    Quando ambos são convertidos, a Rede Amor A2 recebe prioridade na recomendação.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-7">
+              <Field label="Dia da semana preferido (opcional)">
                 <Select
-                  value={form.gender}
-                  onValueChange={(v) => update({ gender: v as Form["gender"] })}
+                  value={form.weekday || "any"}
+                  onValueChange={(value) => update({ weekday: value === "any" ? "" : value })}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Qualquer dia" />
                   </SelectTrigger>
+
                   <SelectContent>
-                    <SelectItem value="masculino">Masculino</SelectItem>
-                    <SelectItem value="feminino">Feminino</SelectItem>
+                    <SelectItem value="any">Qualquer dia</SelectItem>
+
+                    {WEEKDAYS.map((day) => (
+                      <SelectItem key={day.value} value={String(day.value)}>
+                        {day.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
             </div>
-            <Field label="Estado civil">
-              <Select
-                value={form.marital}
-                onValueChange={(v) =>
-                  update({ marital: v as Form["marital"], spouseConverted: "" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                  <SelectItem value="casado">Casado(a)</SelectItem>
-                  <SelectItem value="outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            {form.marital === "casado" && (
-              <Field label="Seu cônjuge é cristão convertido?">
-                <RadioGroup
-                  value={form.spouseConverted}
-                  onValueChange={(v) => update({ spouseConverted: v as Form["spouseConverted"] })}
-                  className="flex gap-6"
-                >
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <RadioGroupItem value="sim" /> Sim
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <RadioGroupItem value="nao" /> Não
-                  </label>
-                </RadioGroup>
-              </Field>
-            )}
 
-            <Field label="Dia da semana preferido (opcional)">
-              <Select
-                value={form.weekday || "any"}
-                onValueChange={(v) => update({ weekday: v === "any" ? "" : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Qualquer dia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Qualquer dia</SelectItem>
-                  {WEEKDAYS.map((d) => (
-                    <SelectItem key={d.value} value={String(d.value)}>
-                      {d.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Button type="submit" disabled={busy} className="w-full" size="lg">
-              <Search className="size-4 mr-2" />
-              {busy ? "Buscando…" : "Buscar células"}
+            <Button type="submit" disabled={busy} className="h-12 w-full" size="lg">
+              <Search className="mr-2 size-4" />
+              {busy ? "Analisando opções…" : "Encontrar minhas melhores opções"}
             </Button>
           </form>
         </Card>

@@ -2,12 +2,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const Input = z.object({
-  address: z.string().min(3).max(500),
-  neighborhood: z.string().min(1).max(200),
-  age: z.number().int().min(0).max(120),
+  street: z.string().trim().min(3).max(250),
+  number: z.string().trim().min(1).max(30),
+  neighborhood: z.string().trim().min(1).max(200),
+  city: z.string().trim().min(2).max(120),
+  state: z
+    .string()
+    .trim()
+    .length(2)
+    .regex(/^[A-Za-z]{2}$/)
+    .transform((value) => value.toUpperCase()),
+  postalCode: z.string().trim().max(9).nullable().optional(),
+  age: z.number().int().min(1).max(120),
   gender: z.enum(["masculino", "feminino"]),
-  marital: z.enum(["solteiro", "casado", "outro"]),
-  spouseConverted: z.boolean().optional(),
+  participation: z.enum(["individual", "casal"]),
+  bothConverted: z.boolean().optional(),
   weekday: z.number().int().min(0).max(6).nullable().optional(),
 });
 
@@ -122,7 +131,18 @@ export const searchCells = createServerFn({ method: "POST" })
 
     await requireApprovedMember();
 
-    const geocoded = await geocodeAddressWithGeoapify(data.address);
+    const fullAddress = [
+      `${data.street}, ${data.number}`,
+      data.neighborhood,
+      data.city,
+      data.state,
+      data.postalCode ? `CEP ${data.postalCode}` : null,
+      "Brasil",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const geocoded = await geocodeAddressWithGeoapify(fullAddress);
 
     if (!geocoded.ok) {
       return { ok: false as const, error: geocoded.error };
@@ -161,8 +181,8 @@ export const searchCells = createServerFn({ method: "POST" })
         adjacentNeighborhoods.add(adjacency.neighborhood_a);
     }
 
-    const isMarriedConvertedSpouse = data.marital === "casado" && data.spouseConverted === true;
-    const idealNetwork = isMarriedConvertedSpouse ? "amor_a2" : networkForAge(data.age);
+    const isCoupleConverted = data.participation === "casal" && data.bothConverted === true;
+    const idealNetwork = isCoupleConverted ? "amor_a2" : networkForAge(data.age);
 
     const genderMatch = (cell: CellRow) => {
       // Redes de crianças e casais não devem ser eliminadas
@@ -177,7 +197,7 @@ export const searchCells = createServerFn({ method: "POST" })
     };
 
     const allowedNetworks = new Set([idealNetwork, "acelere", "impulse"]);
-    if (isMarriedConvertedSpouse) allowedNetworks.add("amor_a2");
+    if (isCoupleConverted) allowedNetworks.add("amor_a2");
 
     const weekdayFilter = data.weekday ?? null;
     const candidates = cells.filter(
@@ -199,8 +219,8 @@ export const searchCells = createServerFn({ method: "POST" })
       }
 
       if (cell.network_id === idealNetwork) score += 3;
-      if (isMarriedConvertedSpouse && cell.network_id === "amor_a2") score += 2;
-      if (!isMarriedConvertedSpouse && cell.network_id !== "amor_a2") score += 2;
+      if (isCoupleConverted && cell.network_id === "amor_a2") score += 2;
+      if (!isCoupleConverted && cell.network_id !== "amor_a2") score += 2;
 
       const distanceKm =
         cell.latitude != null && cell.longitude != null
@@ -223,10 +243,10 @@ export const searchCells = createServerFn({ method: "POST" })
 
     let results = scored.slice(0, 3);
 
-    // Para casal com cônjuge convertido, Amor A2 é a rede indicada.
+    // Para busca de casal em que ambos são convertidos, Amor A2 é a rede indicada.
     // Se houver alguma célula Amor A2 ativa e compatível com o dia
     // selecionado, garantimos que pelo menos uma apareça no Top 3.
-    if (isMarriedConvertedSpouse) {
+    if (isCoupleConverted) {
       const bestAmorA2 = scored.find((cell) => cell.network_id === "amor_a2");
 
       const amorA2AlreadyIncluded = results.some((cell) => cell.network_id === "amor_a2");
