@@ -106,7 +106,7 @@ function LandingPage() {
                 </Link>
 
                 <Link
-                  to="/auth"
+                  to="/solicitar-acesso"
                   className="inline-flex min-h-12 items-center justify-center rounded-xl border bg-background px-6 py-3 font-semibold transition hover:bg-accent"
                 >
                   Solicitar acesso

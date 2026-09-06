@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SolicitarAcessoRouteImport } from './routes/solicitar-acesso'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -22,6 +23,11 @@ import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminCellsNewRouteImport } from './routes/_authenticated/admin.cells.new'
 import { Route as AuthenticatedAdminCellsIdRouteImport } from './routes/_authenticated/admin.cells.$id'
 
+const SolicitarAcessoRoute = SolicitarAcessoRouteImport.update({
+  id: '/solicitar-acesso',
+  path: '/solicitar-acesso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -91,6 +97,7 @@ const AuthenticatedAdminCellsIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/solicitar-acesso': typeof SolicitarAcessoRoute
   '/membros': typeof AuthenticatedMembrosRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/import': typeof AuthenticatedAdminImportRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/solicitar-acesso': typeof SolicitarAcessoRoute
   '/membros': typeof AuthenticatedMembrosRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/import': typeof AuthenticatedAdminImportRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/solicitar-acesso': typeof SolicitarAcessoRoute
   '/_authenticated/membros': typeof AuthenticatedMembrosRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/import': typeof AuthenticatedAdminImportRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/solicitar-acesso'
     | '/membros'
     | '/admin/dashboard'
     | '/admin/import'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/solicitar-acesso'
     | '/membros'
     | '/admin/dashboard'
     | '/admin/import'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/solicitar-acesso'
     | '/_authenticated/membros'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/import'
@@ -176,10 +188,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  SolicitarAcessoRoute: typeof SolicitarAcessoRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/solicitar-acesso': {
+      id: '/solicitar-acesso'
+      path: '/solicitar-acesso'
+      fullPath: '/solicitar-acesso'
+      preLoaderRoute: typeof SolicitarAcessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -298,6 +318,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  SolicitarAcessoRoute: SolicitarAcessoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
