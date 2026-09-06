@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { searchCells } from "@/lib/search.functions";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,7 @@ function MemberSearch() {
   });
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Awaited<ReturnType<typeof searchFn>> | null>(null);
+  const resultAnchorRef = useRef<HTMLDivElement>(null);
 
   const { data: networks } = useQuery({
     queryKey: ["networks"],
@@ -107,6 +108,19 @@ function MemberSearch() {
   const netMap = Object.fromEntries((networks ?? []).map((n) => [n.id, n]));
 
   const update = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
+
+  useEffect(() => {
+    if (!result) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      resultAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [result]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -436,6 +450,8 @@ function MemberSearch() {
           </form>
         </Card>
       </section>
+
+      <div ref={resultAnchorRef} className="scroll-mt-24" aria-hidden="true" />
 
       {result && result.ok && result.results.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 pb-16">
