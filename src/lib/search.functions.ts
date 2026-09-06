@@ -165,7 +165,12 @@ export const searchCells = createServerFn({ method: "POST" })
     const idealNetwork = isMarriedConvertedSpouse ? "amor_a2" : networkForAge(data.age);
 
     const genderMatch = (cell: CellRow) => {
-      if (cell.network_id === "decolar") return true;
+      // Redes de crianças e casais não devem ser eliminadas
+      // pelo gênero individual informado no formulário.
+      if (cell.network_id === "decolar" || cell.network_id === "amor_a2") {
+        return true;
+      }
+
       if (cell.gender === "mista") return true;
       if (data.gender === "masculino") return cell.gender === "masculina";
       return cell.gender === "feminina";
@@ -205,17 +210,37 @@ export const searchCells = createServerFn({ method: "POST" })
       return { ...cell, score, distanceKm };
     });
 
-    scored.sort((a, b) => {
+    const compareRankedCells = (a: (typeof scored)[number], b: (typeof scored)[number]) => {
       if (b.score !== a.score) return b.score - a.score;
+
       const distanceA = a.distanceKm ?? Infinity;
       const distanceB = b.distanceKm ?? Infinity;
+
       return distanceA - distanceB;
-    });
+    };
+
+    scored.sort(compareRankedCells);
+
+    let results = scored.slice(0, 3);
+
+    // Para casal com cônjuge convertido, Amor A2 é a rede indicada.
+    // Se houver alguma célula Amor A2 ativa e compatível com o dia
+    // selecionado, garantimos que pelo menos uma apareça no Top 3.
+    if (isMarriedConvertedSpouse) {
+      const bestAmorA2 = scored.find((cell) => cell.network_id === "amor_a2");
+
+      const amorA2AlreadyIncluded = results.some((cell) => cell.network_id === "amor_a2");
+
+      if (bestAmorA2 && !amorA2AlreadyIncluded) {
+        results = [...results.slice(0, 2), bestAmorA2];
+        results.sort(compareRankedCells);
+      }
+    }
 
     return {
       ok: true as const,
       visitor: { ...visitorLoc, formatted: visitorFormatted },
       idealNetwork,
-      results: scored.slice(0, 3),
+      results,
     };
   });
