@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, HeartHandshake, LockKeyhole, MapPin, ShieldCheck, Users } from "lucide-react";
+import {
+  ArrowRight,
+  HeartHandshake,
+  LockKeyhole,
+  MapPin,
+  MessageCircle,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -18,6 +26,10 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
+  const professionalWhatsapp = `https://wa.me/5581997451960?text=${encodeURIComponent(
+    "Olá, Thiago! Estou entrando em contato através da página da Central de Células da Igreja do Amor – Campus Zona Norte. Gostaria de conversar sobre um projeto de desenvolvimento web, sistema ou outra solução digital.",
+  )}`;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-background/90 backdrop-blur">
@@ -145,13 +157,41 @@ function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-8">
-          <p>
-            © {new Date().getFullYear()} Central de Células · Igreja do Amor · Campus Zona Norte
-          </p>
+      <footer className="border-t bg-muted/20">
+        <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 md:grid-cols-[1fr_auto] md:items-center md:px-8">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} Central de Células · Igreja do Amor · Campus Zona Norte
+            </p>
 
-          <p>Área institucional de acesso controlado</p>
+            <p className="text-xs text-muted-foreground">Área institucional de acesso controlado</p>
+          </div>
+
+          <a
+            href={professionalWhatsapp}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex items-center gap-3 rounded-xl border bg-background px-4 py-3 transition-all hover:border-primary/40 hover:shadow-md"
+            aria-label="Entrar em contato profissional com Thiago F. de Lima pelo WhatsApp"
+          >
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <MessageCircle className="size-5" />
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Projeto e desenvolvimento</p>
+
+              <p className="text-sm font-semibold text-foreground">Thiago F. de Lima</p>
+
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Desenvolvimento Web · Sistemas · Soluções Digitais
+              </p>
+
+              <p className="mt-1 text-xs font-medium text-primary">
+                Contato profissional · (81) 99745-1960
+              </p>
+            </div>
+          </a>
         </div>
       </footer>
     </div>
