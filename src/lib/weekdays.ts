@@ -9,7 +9,7 @@ export const WEEKDAYS = [
 ] as const;
 
 export const weekdayLabel = (w: number | null | undefined) =>
-  w == null ? null : WEEKDAYS.find(d => d.value === w)?.label ?? null;
+  w == null ? null : (WEEKDAYS.find((d) => d.value === w)?.label ?? null);
 
 export const formatMeetingTime = (t: string | null | undefined) => {
   if (!t) return null;

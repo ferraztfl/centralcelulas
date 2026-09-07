@@ -65,7 +65,7 @@ function escapeHtml(value?: string | null) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
 
@@ -185,9 +185,7 @@ export function DashboardMap({
         }).addTo(map);
 
         if (cells.length > 0) {
-          const bounds = L.latLngBounds(
-            cells.map((cell) => L.latLng(cell.lat, cell.lng)),
-          );
+          const bounds = L.latLngBounds(cells.map((cell) => L.latLng(cell.lat, cell.lng)));
 
           cells.forEach((cell) => {
             const color = NETWORK_HEX[cell.network_id as NetworkId] || "#111827";
@@ -207,8 +205,10 @@ export function DashboardMap({
         }
 
         window.setTimeout(() => map?.invalidateSize(), 0);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Erro ao carregar o mapa");
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Erro ao carregar o mapa");
+        }
       }
     })();
 
@@ -217,11 +217,13 @@ export function DashboardMap({
       map?.remove();
       map = null;
     };
-  }, [JSON.stringify(cells)]);
+  }, [cells]);
 
   if (error) {
     return (
-      <div className={`flex items-center justify-center bg-muted/40 p-6 text-sm text-muted-foreground ${className ?? ""}`}>
+      <div
+        className={`flex items-center justify-center bg-muted/40 p-6 text-sm text-muted-foreground ${className ?? ""}`}
+      >
         {error}
       </div>
     );

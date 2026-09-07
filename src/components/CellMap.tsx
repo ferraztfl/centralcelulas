@@ -16,7 +16,7 @@ function escapeHtml(value: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
 
@@ -107,8 +107,10 @@ export function CellMap({
         }
 
         window.setTimeout(() => map?.invalidateSize(), 0);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Erro ao carregar o mapa");
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Erro ao carregar o mapa");
+        }
       }
     })();
 
@@ -117,15 +119,19 @@ export function CellMap({
       map?.remove();
       map = null;
     };
-  }, [visitor.lat, visitor.lng, cells.map((cell) => cell.id).join(",")]);
+  }, [visitor.lat, visitor.lng, cells]);
 
   if (error) {
     return (
-      <div className={`flex items-center justify-center rounded-xl border border-dashed bg-muted/40 p-6 text-sm text-muted-foreground ${className ?? ""}`}>
+      <div
+        className={`flex items-center justify-center rounded-xl border border-dashed bg-muted/40 p-6 text-sm text-muted-foreground ${className ?? ""}`}
+      >
         {error}
       </div>
     );
   }
 
-  return <div ref={ref} className={`rounded-xl border bg-muted overflow-hidden ${className ?? ""}`} />;
+  return (
+    <div ref={ref} className={`rounded-xl border bg-muted overflow-hidden ${className ?? ""}`} />
+  );
 }
