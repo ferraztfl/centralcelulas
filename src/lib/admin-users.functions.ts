@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireApprovedAdmin, requireSuperAdmin, SUPER_ADMIN_EMAIL } from "@/lib/authz.server";
+import type { AppAccessRole } from "@/lib/access";
 
 type AccessStatus = "pending" | "approved" | "rejected";
 
@@ -95,7 +96,7 @@ export const listAdminUsers = createServerFn({ method: "POST" })
         const email = authUser?.email?.trim().toLowerCase() ?? "";
         const databaseRoles = roleMap.get(profile.id) ?? [];
 
-        const effectiveRole =
+        const effectiveRole: AppAccessRole | null =
           email === SUPER_ADMIN_EMAIL && databaseRoles.includes("admin")
             ? "super_admin"
             : databaseRoles.includes("admin")
